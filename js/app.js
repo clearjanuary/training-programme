@@ -6,7 +6,11 @@ import { esc } from './ui.js';
 import { renderToday, bindToday } from './views/today.js';
 import { renderPlan } from './views/plan.js';
 import { renderSession, bindSession } from './views/session.js';
-import { renderProgress } from './views/progress.js';
+import { renderProgress, bindProgress } from './views/progress.js';
+import {
+  stravaAvailable, stravaAutoSyncDue, fetchStravaActivities, finishStravaConnect,
+} from './strava.js';
+import { planStravaImports, applyStravaImports, summariseImports } from './strava-sync.js';
 import { renderSettings, bindSettings } from './views/settings.js';
 import { renderWelcome, bindWelcome } from './views/welcome.js';
 import { renderImportRun, bindImportRun } from './views/import-run.js';
@@ -19,7 +23,7 @@ const ROUTES = Object.freeze({
   today: { tab: 'today', render: renderToday, bind: bindToday },
   plan: { tab: 'plan', render: renderPlan },
   session: { tab: 'today', render: renderSession, bind: bindSession },
-  progress: { tab: 'progress', render: renderProgress },
+  progress: { tab: 'progress', render: renderProgress, bind: bindProgress },
   settings: { tab: 'settings', render: renderSettings, bind: bindSettings },
 });
 const TOAST_MS = 3500;
@@ -68,7 +72,52 @@ const ctx = {
   },
   navigate(hash) { location.hash = hash; },
   toast,
+  syncStrava: () => runStravaSync(),
+  finishStrava: () => collectStravaConnection({ announceWaiting: true }),
 };
+
+// Pulls new Strava runs and logs them against the matching sessions (or as extras).
+// Planning happens after the fetch so it always uses the latest state.
+async function runStravaSync({ quiet = false } = {}) {
+  if (!stravaAvailable() || !state.settings.startDate) return;
+  try {
+    const activities = await fetchStravaActivities(state.settings.startDate);
+    if (!activities) return;
+    const plans = planStravaImports(activities, state);
+    if (plans.length) {
+      ctx.commit(applyStravaImports(state, plans));
+      toast(summariseImports(plans));
+    } else if (!quiet) {
+      render();
+      toast('No new runs on Strava.');
+    }
+  } catch (error) {
+    console.error('Strava sync failed', error);
+    if (error.status === 401) toast('Strava disconnected. Reconnect it in Settings.');
+    else if (!quiet) toast(`Strava sync failed: ${error.message}`);
+  }
+}
+
+async function collectStravaConnection({ announceWaiting = false } = {}) {
+  try {
+    const name = await finishStravaConnect();
+    if (!name) {
+      if (announceWaiting) toast('Not ready yet. Approve Train on the Strava page first.');
+      return;
+    }
+    toast(`Connected to Strava as ${name}.`);
+    render();
+    await runStravaSync({ quiet: true });
+  } catch (error) {
+    console.error('Could not finish connecting Strava', error);
+    toast('Could not finish connecting Strava. Try again from Settings.');
+  }
+}
+
+function onForeground() {
+  collectStravaConnection();
+  if (stravaAutoSyncDue()) runStravaSync({ quiet: true });
+}
 
 function render() {
   const route = parseRoute();
@@ -98,11 +147,14 @@ window.addEventListener('hashchange', () => {
 
 // The app may stay open overnight on the home screen; refresh when the day changes.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && toISODate(new Date()) !== lastRenderedDay) render();
+  if (document.hidden) return;
+  if (toISODate(new Date()) !== lastRenderedDay) render();
+  onForeground();
 });
 
 initRestTimer();
 render();
+onForeground();
 
 if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('./sw.js').catch((error) => console.error('Offline support unavailable', error));

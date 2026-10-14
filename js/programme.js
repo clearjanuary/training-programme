@@ -1,6 +1,10 @@
 // Twelve-week hybrid block: three full-body strength sessions and three runs a week.
 // Weeks 4 and 8 are deloads; week 12 retests 5 km, pull-ups and dips.
 
+import { EXERCISES } from './exercises.js';
+
+export { EXERCISES };
+
 export const PROGRAMME_WEEKS = 12;
 export const DELOAD_WEEKS = Object.freeze([4, 8]);
 export const TEST_WEEK = 12;
@@ -54,7 +58,7 @@ export function layoutWarnings(layout) {
   });
 }
 
-const planOf = ({ layout = DEFAULT_LAYOUT, clubRuns = DEFAULT_CLUB_RUNS } = {}) => ({ layout, clubRuns });
+const planOf = ({ layout = DEFAULT_LAYOUT, clubRuns = DEFAULT_CLUB_RUNS, swaps = {} } = {}) => ({ layout, clubRuns, swaps });
 
 export const isDeloadWeek = (week) => DELOAD_WEEKS.includes(week);
 
@@ -64,53 +68,30 @@ export function weekPhase(week) {
   return 'Build';
 }
 
-// load: 'weight' = always loaded, 'optional' = bodyweight until it gets easy, 'bodyweight', 'none'.
-export const EXERCISES = Object.freeze({
-  backSquat: { name: 'Back squat', load: 'weight', barbell: true, increment: 2.5, cue: 'Brace hard, sit down between your hips, knees track over toes. Set the rack safeties just below your bottom position.' },
-  benchPress: { name: 'Bench press', load: 'weight', barbell: true, increment: 2.5, cue: 'Shoulder blades pinned, feet planted. Touch low chest, press up and slightly back. Use the safeties.' },
-  deadlift: { name: 'Deadlift', load: 'weight', barbell: true, increment: 2.5, cue: 'Bar over mid-foot, push the floor away, hips and shoulders rise together. Reset every rep.' },
-  overheadPress: { name: 'Standing overhead press', load: 'weight', barbell: true, increment: 2.5, cue: 'Squeeze glutes, ribs down. Press in a straight line and push your head through at the top.' },
-  pullUp: { name: 'Strict pull-up', load: 'bodyweight', cue: 'Overhand grip, dead hang to chin over the bar, no kipping. Split sets are fine; never grind to failure.' },
-  chinUp: { name: 'Chin-up', load: 'bodyweight', cue: 'Underhand, shoulder-width. Stop each set about 2 reps before failure.' },
-  chinUpNegative: { name: 'Chin-up negative', load: 'bodyweight', cue: 'Step up to chin-over-bar, then lower for a slow 5-second count to a dead hang.' },
-  dip: { name: 'Dip', load: 'optional', increment: 2.5, cue: 'Slight forward lean, lower until shoulders are just below elbows. When weighted, grip a dumbbell between your feet.' },
-  inclineDbPress: { name: 'Incline dumbbell press', load: 'weight', increment: 2, cue: 'Bench at about 30°. Lower to upper chest with elbows around 45°.' },
-  dbRow: { name: 'One-arm dumbbell row', load: 'weight', increment: 2, perSide: true, cue: 'Hand and knee on the bench. Pull your elbow towards your hip and pause.' },
-  bulgarianSplitSquat: { name: 'Bulgarian split squat', load: 'weight', increment: 2, perSide: true, cue: 'Rear foot on the bench, torso tall, dumbbells at your sides. Control the way down.' },
-  reverseLunge: { name: 'Dumbbell reverse lunge', load: 'weight', increment: 2, perSide: true, cue: 'Step back, lightly touch the back knee down, drive up through the front heel.' },
-  facePull: { name: 'Band face pull', load: 'none', cue: 'Pull the band to your forehead, elbows high, squeeze the back of the shoulders.' },
-  calfRaise: { name: 'Single-leg calf raise', load: 'optional', increment: 2, perSide: true, cue: 'Off a step or plate: full stretch, pause at the top. Hold a dumbbell once 15 reps is easy.' },
-  deadBug: { name: 'Dead bug', load: 'none', perSide: true, cue: 'Lower back pressed into the floor. Slowly extend opposite arm and leg.' },
-  lateralRaise: { name: 'Dumbbell lateral raise', load: 'weight', increment: 2, cue: 'Lean slightly forward, raise to shoulder height leading with the elbows.' },
-  curlTriceps: { name: 'DB curl + overhead triceps', load: 'weight', increment: 2, cue: 'Superset: a set of curls straight into overhead extensions, then rest.' },
-  hangingKneeRaise: { name: 'Hanging knee raise', load: 'none', cue: 'Hang from the bar and curl knees to chest without swinging.' },
-  kbSwing: { name: 'Kettlebell swing', load: 'weight', increment: 0, cue: 'Hinge, snap the hips, let the bell float to chest height. Arms are just ropes. Use the 16 kg.' },
-  farmerCarry: { name: 'Farmer carry', load: 'weight', increment: 2, unit: 'm', cue: 'Heaviest dumbbells you can hold, stand tall, short quick steps.' },
-  sidePlank: { name: 'Side plank', load: 'none', unit: 's', perSide: true, cue: 'Straight line from ankles to head; push the floor away.' },
-});
-
 export const GYM_WARM_UP = '5 min easy on the erg, then 2 rounds of 10 band pull-aparts, 10 bodyweight squats and 5 inchworms. Do 2–3 lighter ramp-up sets before your first lift.';
+export const GYM_COOL_DOWN = '5 min mobility: couch stretch 45 s each side, 10 ankle rocks each side, 8 open books each side, then a 30 s dead hang from the bar.';
 
 const item = (exercise, sets, reps, extra = {}) => ({ exercise, sets, reps, rir: 2, rest: 90, ...extra });
 
 const GYM_SESSIONS = Object.freeze({
   gymA: {
     title: 'Strength A',
-    subtitle: 'Squat, pull-ups, legs',
+    subtitle: 'Jumps, squat, pull-ups, legs',
     items: [
+      item('broadJump', 3, [5, 5], { rest: 60, rir: null }),
       item('backSquat', 3, [6, 8], { rest: 150 }),
       item('pullUp', null, null, { rest: 120, plan: 'pullUp' }),
       item('inclineDbPress', 3, [8, 12]),
       item('bulgarianSplitSquat', 2, [8, 10]),
       item('facePull', 2, [15, 20], { rest: 60 }),
       item('calfRaise', 3, [10, 15], { rest: 60 }),
-      item('deadBug', 3, [8, 8], { rest: 45 }),
     ],
   },
   gymB: {
     title: 'Strength B',
     subtitle: 'Bench, dips, upper body',
     items: [
+      item('pogoHops', 3, [20, 20], { rest: 45, rir: null }),
       item('benchPress', 3, [6, 8], { rest: 150 }),
       item('dbRow', 3, [8, 12]),
       item('dip', null, null, { rest: 120, plan: 'dip', startWeight: 5 }),
@@ -122,11 +103,12 @@ const GYM_SESSIONS = Object.freeze({
   },
   gymC: {
     title: 'Strength C',
-    subtitle: 'Deadlift, press, carries',
+    subtitle: 'Deadlift, press, hamstrings, carries',
     items: [
       item('deadlift', 3, [4, 6], { rest: 180, rir: 3 }),
       item('overheadPress', 3, [6, 8], { rest: 150 }),
       item('chinUp', 3, [4, 8], { rest: 120 }),
+      item('nordicCurl', 3, [4, 6], { rest: 90, rir: null }),
       item('reverseLunge', 2, [8, 10]),
       item('kbSwing', 3, [15, 15], { rest: 60 }),
       item('farmerCarry', 3, [40, 40], { rest: 90 }),
@@ -145,12 +127,14 @@ const PLANS = Object.freeze({
     { sets: 3, reps: [8, 10], weighted: true }, 'test'],
 });
 
+const loadFlags = (exerciseId) => {
+  const { load, barbell } = EXERCISES[exerciseId];
+  return { weighted: load === 'weight' || load === 'optional', optionalLoad: load === 'optional', barbell: Boolean(barbell) };
+};
+
+// `slot` is the planned exercise; it stays the same when an alternative is swapped in.
 function resolveItem(gymItem, week) {
-  const load = EXERCISES[gymItem.exercise].load;
-  const base = {
-    ...gymItem, weighted: load === 'weight' || load === 'optional', optionalLoad: load === 'optional',
-    barbell: Boolean(EXERCISES[gymItem.exercise].barbell),
-  };
+  const base = { ...gymItem, slot: gymItem.exercise, ...loadFlags(gymItem.exercise) };
   if (gymItem.plan) {
     const step = PLANS[gymItem.plan][week];
     if (step === 'test') {
@@ -160,7 +144,26 @@ function resolveItem(gymItem, week) {
     return { ...base, sets: step.sets, reps: step.reps, weighted: true };
   }
   if (!isDeloadWeek(week)) return base;
-  return { ...base, sets: Math.max(2, base.sets - 1), rir: 4 };
+  return { ...base, sets: Math.max(2, base.sets - 1), rir: base.rir === null ? null : 4 };
+}
+
+// Swaps keep the slot's sets, reps and rest. Ladder items keep the ladder's own
+// weighted flag; other items take the load style of the new exercise.
+function swapItem(gymItem, exerciseId) {
+  const flags = loadFlags(exerciseId);
+  return gymItem.plan
+    ? { ...gymItem, exercise: exerciseId, barbell: flags.barbell }
+    : { ...gymItem, exercise: exerciseId, ...flags };
+}
+
+export function applySwaps(session, swaps = {}) {
+  if (session.type !== 'gym') return session;
+  const items = session.items.map((gymItem) => {
+    const swapTo = swaps[gymItem.slot];
+    const allowed = EXERCISES[gymItem.slot].alternatives ?? [];
+    return swapTo && allowed.includes(swapTo) ? swapItem(gymItem, swapTo) : gymItem;
+  });
+  return { ...session, items };
 }
 
 const WARM_UP = Object.freeze({ label: 'Warm-up', detail: '2 km easy', zone: 'easy' });
@@ -287,7 +290,7 @@ export function getSession(week, kind, { club = false } = {}) {
     const gym = GYM_SESSIONS[kind];
     return {
       ...base, type: 'gym', title: gym.title, subtitle: gym.subtitle,
-      warmUp: GYM_WARM_UP, items: gym.items.map((i) => resolveItem(i, week)),
+      warmUp: GYM_WARM_UP, coolDown: GYM_COOL_DOWN, items: gym.items.map((i) => resolveItem(i, week)),
     };
   }
   return { ...base, type: 'run', club, ...runSession(kind, week, club) };
@@ -295,20 +298,21 @@ export function getSession(week, kind, { club = false } = {}) {
 
 export function sessionOnDay(week, weekday, settings) {
   assertWeek(week);
-  const { layout, clubRuns } = planOf(settings);
+  const { layout, clubRuns, swaps } = planOf(settings);
   const kind = layout[weekday];
   if (kind === undefined) throw new RangeError('Weekday must be between 0 and 6');
   if (kind === 'rest') {
     return { key: null, week, weekday, kind, type: 'rest', phase: weekPhase(week), title: 'Rest day', subtitle: 'Walk, stretch, sleep well' };
   }
-  return { ...getSession(week, kind, { club: clubRuns.includes(kind) }), weekday };
+  return { ...applySwaps(getSession(week, kind, { club: clubRuns.includes(kind) }), swaps), weekday };
 }
 
 export function sessionFromKey(key, settings) {
   const parsed = parseSessionKey(key);
   if (!parsed || parsed.week < 1 || parsed.week > PROGRAMME_WEEKS) return null;
-  const { layout, clubRuns } = planOf(settings);
-  return { ...getSession(parsed.week, parsed.kind, { club: clubRuns.includes(parsed.kind) }), weekday: layout.indexOf(parsed.kind) };
+  const { layout, clubRuns, swaps } = planOf(settings);
+  const session = getSession(parsed.week, parsed.kind, { club: clubRuns.includes(parsed.kind) });
+  return { ...applySwaps(session, swaps), weekday: layout.indexOf(parsed.kind) };
 }
 
 export const weekSessions = (week, settings) => DAY_ORDER.map((weekday) => sessionOnDay(week, weekday, settings));

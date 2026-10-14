@@ -3,7 +3,7 @@ import {
   findRecentPerformances, suggestLoad, warmUpSets, adaptLadder,
 } from '../progression.js';
 import { formatDuration } from '../paces.js';
-import { withLog } from '../store.js';
+import { withLog, withSettings } from '../store.js';
 import { toISODate, parseISODate } from '../schedule.js';
 import { esc, sessionHeader, formatLongDate, CHECK_ICON } from '../ui.js';
 import { startRest } from '../timer.js';
@@ -16,7 +16,20 @@ const unitOf = (exercise) => UNIT_LABEL[exercise.unit ?? 'reps'];
 function targetText(item, exercise) {
   if (item.test) return 'Max reps · one all-out set';
   const side = exercise.perSide ? ' each side' : '';
-  return `${item.sets} × ${repsText(item.reps)} ${unitOf(exercise)}${side} · ${item.rir} in reserve · rest ${formatDuration(item.rest)}`;
+  const reserve = item.rir === null ? '' : ` · ${item.rir} in reserve`;
+  return `${item.sets} × ${repsText(item.reps)} ${unitOf(exercise)}${side}${reserve} · rest ${formatDuration(item.rest)}`;
+}
+
+function swapControl(item) {
+  const alternatives = EXERCISES[item.slot].alternatives ?? [];
+  if (!alternatives.length) return '';
+  const options = alternatives
+    .map((id) => `<option value="${id}"${item.exercise === id ? ' selected' : ''}>${esc(EXERCISES[id].name)}</option>`)
+    .join('');
+  return `
+    <label class="stack swap">Swap exercise
+      <select data-swap="${item.slot}"><option value="">${esc(EXERCISES[item.slot].name)} (planned)</option>${options}</select>
+    </label>`;
 }
 
 function lastTimeText(last) {
@@ -49,7 +62,7 @@ function setRow(item, exercise, index, set, defaultWeight) {
 // This week's target for an item: the planned one, or last week's ladder step repeated if it was missed.
 function resolveTarget(item, session, last) {
   if (!item.plan || !last || isDeloadWeek(session.week)) return { target: item, ladderNote: null };
-  const previousItem = getSession(last.week, session.kind).items.find((i) => i.exercise === item.exercise);
+  const previousItem = getSession(last.week, session.kind).items.find((i) => i.slot === item.slot);
   const { item: target, note } = adaptLadder(item, previousItem, last);
   return { target, ladderNote: note };
 }
@@ -87,7 +100,7 @@ function exerciseCard(item, index, session, state, log) {
       ${warmUp ? `<p class="last">Warm-up sets: ${esc(warmUp)}</p>` : ''}
       ${last ? `<p class="last">${esc(lastTimeText(last))}</p>` : ''}
       <div class="sets">${rows}</div>
-      <details class="cue"><summary>How to do it</summary><p>${esc(exercise.cue)}</p></details>
+      <details class="cue"><summary>How to do it</summary><p>${esc(exercise.cue)}</p>${swapControl(item)}</details>
     </section>`;
 }
 
@@ -105,6 +118,10 @@ export function renderGym(session, ctx) {
       <p>${esc(session.warmUp)}</p>
     </section>
     ${session.items.map((item, i) => exerciseCard(item, i, session, state, log)).join('')}
+    <section class="card note">
+      <h2 class="section-title">Finish · 5 min</h2>
+      <p>${esc(session.coolDown)}</p>
+    </section>
     <div class="finish">
       ${doneNote}
       <button type="button" class="btn primary block" data-action="finish">${log.done ? 'Save changes' : 'Finish session'}</button>
@@ -178,5 +195,18 @@ export function bindGym(root, session, ctx) {
     const button = event.target.closest('[data-action]');
     if (button?.dataset.action === 'tick') toggleSet(button);
     if (button?.dataset.action === 'finish') finish();
+  });
+
+  // Swaps stick for every future session until undone (here or in Settings).
+  root.addEventListener('change', (event) => {
+    const slot = event.target.dataset.swap;
+    if (!slot) return;
+    const current = ctx.state.settings.swaps ?? {};
+    const swapTo = event.target.value;
+    const swaps = swapTo
+      ? { ...current, [slot]: swapTo }
+      : Object.fromEntries(Object.entries(current).filter(([key]) => key !== slot));
+    ctx.commit(withSettings(ctx.state, { swaps }));
+    ctx.toast(swapTo ? `Swapped to ${EXERCISES[swapTo].name}.` : `Back to ${EXERCISES[slot].name}.`);
   });
 }

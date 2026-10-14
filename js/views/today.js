@@ -1,8 +1,9 @@
 import { sessionOnDay, weekSessions, plannedKm, DAY_NAMES, PROGRAMME_WEEKS, EXERCISES } from '../programme.js';
 import { programmePosition, dateForSession, parseISODate } from '../schedule.js';
 import {
-  actualKm, extraRunKm, pendingSessions, backupDue, weeklyVolume, volumeWarning,
+  actualKm, extraRunKm, pendingSessions, backupDue, weeklyVolume, volumeWarning, weighInDue,
 } from '../stats.js';
+import { isStravaConnected } from '../strava.js';
 import { exportBackup, markBackedUp, isIOSBrowserTab } from '../backup.js';
 import { parseDuration, describeZone } from '../paces.js';
 import { DEFAULT_SETTINGS } from '../store.js';
@@ -86,7 +87,10 @@ function weekStrip(week, state, today) {
       <h2 class="section-title">This week</h2>
       <ol class="week-strip">${days}</ol>
       <p class="muted small">Running: ${esc(formatKm(actualKm(state.logs, week) + extraRunKm(state.extras ?? [], startDate, week)))} of ${plannedKm(week, state.settings)} km planned</p>
-      <p class="actions"><a class="btn" href="#/extra">+ Extra activity</a></p>
+      <p class="actions">
+        <a class="btn" href="#/extra">+ Extra activity</a>
+        ${isStravaConnected() ? '<button type="button" class="btn" data-action="strava-sync">Sync Strava</button>' : ''}
+      </p>
     </section>`;
 }
 
@@ -104,6 +108,14 @@ function loadNotice(state, week) {
 
 function notices(state, today, week) {
   const cards = [loadNotice(state, week)];
+  if (weighInDue(state.body ?? [], today)) {
+    cards.push(`
+      <section class="card notice">
+        <h2 class="section-title">Weekly weigh-in</h2>
+        <p class="muted small">Log your weight and waist so you can see the recomposition working.</p>
+        <p class="actions"><a class="btn" href="#/progress">Log it</a></p>
+      </section>`);
+  }
   if (isIOSBrowserTab()) {
     cards.push(`
       <section class="card notice">
@@ -124,6 +136,7 @@ function notices(state, today, week) {
 }
 
 export function bindToday(root, ctx) {
+  root.querySelector('[data-action="strava-sync"]')?.addEventListener('click', () => ctx.syncStrava());
   root.querySelector('[data-action="backup"]')?.addEventListener('click', async () => {
     if (!(await exportBackup(ctx.state))) return;
     ctx.commit(markBackedUp(ctx.state));

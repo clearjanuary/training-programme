@@ -13,11 +13,11 @@ Default week (change it in Settings → Weekly layout):
 
 | Day | Session | What |
 |-----|---------|------|
-| Mon | Strength A | Back squat, pull-ups, incline DB press, Bulgarian split squat, face pulls, calf raises, dead bugs |
-| Tue | Strength B | Bench, one-arm DB row, dips, chin-up negatives, lateral raises, curls/triceps, hanging knee raises |
+| Mon | Strength A | Broad jumps, back squat, pull-ups, incline DB press, Bulgarian split squat, face pulls, calf raises |
+| Tue | Strength B | Pogo hops, bench, one-arm DB row, dips, chin-up negatives, lateral raises, curls/triceps, hanging knee raises |
 | Wed | Quality run | Intervals or threshold, alternating weekly (treadmill friendly) |
 | Thu | Run club easy | 5 km route; 10 km route in weeks 9–11. Conversational pace |
-| Fri | Strength C | Deadlift, overhead press, chin-ups, reverse lunges, KB swings, farmer carries, side planks |
+| Fri | Strength C | Deadlift, overhead press, chin-ups, Nordic hamstring curls, reverse lunges, KB swings, farmer carries, side planks |
 | Sat | Rest | Or Strength C, if Friday didn't happen |
 | Sun | Run club long run | Pick the route closest to the week's target (8 → 16 km) |
 

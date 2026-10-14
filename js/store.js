@@ -1,6 +1,6 @@
 import { parseDuration } from './paces.js';
 import {
-  DEFAULT_LAYOUT, DEFAULT_CLUB_RUNS, CLUB_KINDS, EXTRA_TYPES, validateLayout, sessionKey, parseSessionKey,
+  DEFAULT_LAYOUT, DEFAULT_CLUB_RUNS, CLUB_KINDS, EXTRA_TYPES, EXERCISES, validateLayout, sessionKey, parseSessionKey,
 } from './programme.js';
 
 // All data lives on the phone in localStorage. State is never mutated:
@@ -20,10 +20,47 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 export const createState = (settings = {}) => ({
   version: 1,
-  settings: { ...DEFAULT_SETTINGS, layout: [...DEFAULT_LAYOUT], clubRuns: [...DEFAULT_CLUB_RUNS], ...settings },
+  settings: { ...DEFAULT_SETTINGS, layout: [...DEFAULT_LAYOUT], clubRuns: [...DEFAULT_CLUB_RUNS], swaps: {}, ...settings },
   logs: {},
   extras: [],
+  body: [],
 });
+
+const WEIGHT_RANGE_KG = Object.freeze([30, 250]);
+const WAIST_RANGE_CM = Object.freeze([40, 200]);
+const inRange = (value, [min, max]) => value >= min && value <= max;
+
+// A weekly weigh-in: weight and/or waist for a date. One entry per date.
+export function validateBodyEntry(entry) {
+  if (!entry || typeof entry !== 'object') return 'Not a body measurement.';
+  if (!ISO_DATE.test(entry.date ?? '')) return 'Pick a valid date.';
+  const weight = entry.weightKg ?? null;
+  const waist = entry.waistCm ?? null;
+  if (weight === null && waist === null) return 'Enter a weight or waist measurement.';
+  if (weight !== null && !inRange(weight, WEIGHT_RANGE_KG)) return 'Weight should be between 30 and 250 kg.';
+  if (waist !== null && !inRange(waist, WAIST_RANGE_CM)) return 'Waist should be between 40 and 200 cm.';
+  return null;
+}
+
+export const withBodyEntry = (state, entry) => ({
+  ...state,
+  body: [...(state.body ?? []).filter((e) => e.date !== entry.date), entry].sort((a, b) => a.date.localeCompare(b.date)),
+});
+export const withoutBodyEntry = (state, date) => ({ ...state, body: (state.body ?? []).filter((e) => e.date !== date) });
+
+function validateBody(body = []) {
+  if (!Array.isArray(body)) throw new Error('The backup has unreadable body measurements.');
+  const bad = body.map(validateBodyEntry).find(Boolean);
+  if (bad) throw new Error(`The backup has an invalid body measurement: ${bad}`);
+  return body.map((e) => ({ date: e.date, weightKg: e.weightKg ?? null, waistCm: e.waistCm ?? null }));
+}
+
+function validateSwaps(swaps = {}) {
+  if (!swaps || typeof swaps !== 'object' || Array.isArray(swaps)) throw new Error('The backup has unreadable exercise swaps.');
+  const bad = Object.entries(swaps).find(([slot, to]) => !(EXERCISES[slot]?.alternatives ?? []).includes(to));
+  if (bad) throw new Error(`The backup has an invalid exercise swap: ${bad[0]}`);
+  return { ...swaps };
+}
 
 export const withSettings = (state, patch) => ({ ...state, settings: { ...state.settings, ...patch } });
 export const withLog = (state, key, log) => ({ ...state, logs: { ...state.logs, [key]: log } });
@@ -95,7 +132,12 @@ function validateSettings(settings) {
   const lastBackup = settings.lastBackup ?? null;
   if (lastBackup !== null && !ISO_DATE.test(lastBackup)) throw new Error('The backup has an invalid backup date.');
   return {
-    startDate: settings.startDate, fiveK: settings.fiveK, layout: [...layout], clubRuns: [...clubRuns], lastBackup,
+    startDate: settings.startDate,
+    fiveK: settings.fiveK,
+    layout: [...layout],
+    clubRuns: [...clubRuns],
+    lastBackup,
+    swaps: validateSwaps(settings.swaps),
   };
 }
 
@@ -114,6 +156,7 @@ export function validateState(raw) {
     settings,
     logs: Object.fromEntries(entries.map(([key, log]) => [key, log])),
     extras: validateExtras(raw.extras),
+    body: validateBody(raw.body),
   };
 }
 

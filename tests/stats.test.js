@@ -2,8 +2,27 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   actualKm, weeklyVolume, liftBests, bestReps, dueSessionKeys, adherence, pendingSessions,
-  backupDue, defaultRunSession, volumeWarning, runOverage, extraRunKm,
+  backupDue, defaultRunSession, volumeWarning, runOverage, extraRunKm, bodyTrend, weighInDue,
 } from '../js/stats.js';
+
+test('bodyTrend reports the latest values and change since the first entry', () => {
+  const body = [
+    { date: '2026-10-12', weightKg: 79, waistCm: 90 },
+    { date: '2026-10-19', weightKg: 78.6, waistCm: null },
+    { date: '2026-10-26', weightKg: 78.9, waistCm: 88.5 },
+  ];
+  const trend = bodyTrend(body);
+  assert.deepEqual(trend.weight, { latest: 78.9, change: -0.1, since: '2026-10-12' });
+  assert.deepEqual(trend.waist, { latest: 88.5, change: -1.5, since: '2026-10-12' });
+  assert.deepEqual(bodyTrend([]), { weight: null, waist: null });
+});
+
+test('weighInDue asks weekly once the block has started', () => {
+  const today = parseISODate('2026-10-26');
+  assert.equal(weighInDue([], today), true);
+  assert.equal(weighInDue([{ date: '2026-10-21', weightKg: 78 }], today), false);
+  assert.equal(weighInDue([{ date: '2026-10-19', weightKg: 78 }], today), true);
+});
 import { parseISODate } from '../js/schedule.js';
 import { DEFAULT_LAYOUT, weekSessions } from '../js/programme.js';
 

@@ -157,6 +157,38 @@ test('getSession rejects weeks and sessions outside the programme', () => {
   assert.throws(() => sessionOnDay(1, 7), RangeError);
 });
 
+test('sessions open with power work, include Nordics, and end with mobility', () => {
+  assert.equal(getSession(1, 'gymA').items[0].exercise, 'broadJump');
+  assert.equal(getSession(1, 'gymB').items[0].exercise, 'pogoHops');
+  assert.ok(getSession(1, 'gymC').items.some((i) => i.exercise === 'nordicCurl'));
+  assert.match(getSession(1, 'gymA').coolDown, /couch stretch/i);
+});
+
+test('every alternative is a known exercise', () => {
+  for (const [id, exercise] of Object.entries(EXERCISES)) {
+    for (const alt of exercise.alternatives ?? []) assert.ok(EXERCISES[alt], `${id} → ${alt}`);
+  }
+});
+
+test('swaps replace an exercise but keep its slot and targets', () => {
+  const settings = { swaps: { backSquat: 'gobletSquat', pullUp: 'chinUp' } };
+  const session = sessionOnDay(1, 1, settings);
+  const squat = session.items.find((i) => i.slot === 'backSquat');
+  assert.equal(squat.exercise, 'gobletSquat');
+  assert.equal(squat.barbell, false);
+  assert.equal(squat.weighted, true);
+  assert.deepEqual(squat.reps, [6, 8]);
+  const ladder = session.items.find((i) => i.slot === 'pullUp');
+  assert.equal(ladder.exercise, 'chinUp');
+  assert.deepEqual(ladder.reps, [3, 3]);
+  assert.equal(sessionFromKey('w1-gymA', settings).items[1].exercise, 'gobletSquat');
+});
+
+test('swaps to an exercise that is not an alternative are ignored', () => {
+  const squat = sessionOnDay(1, 1, { swaps: { backSquat: 'deadlift' } }).items.find((i) => i.slot === 'backSquat');
+  assert.equal(squat.exercise, 'backSquat');
+});
+
 test('weekPhase labels build, deload and test weeks', () => {
   assert.equal(weekPhase(1), 'Build');
   assert.equal(weekPhase(4), 'Deload');

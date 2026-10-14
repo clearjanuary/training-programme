@@ -104,6 +104,28 @@ export function defaultRunSession(sessions, logs, today) {
   return earlier.at(-1) ?? open[0] ?? runs[0];
 }
 
+function trendOf(sortedBody, field) {
+  const entries = sortedBody.filter((entry) => entry[field] !== null && entry[field] !== undefined);
+  if (!entries.length) return null;
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  return { latest: last[field], change: oneDecimal(last[field] - first[field]), since: first.date };
+}
+
+// Latest weight and waist, and the change since the first measurement of each.
+export function bodyTrend(body) {
+  const sorted = [...body].sort((a, b) => a.date.localeCompare(b.date));
+  return { weight: trendOf(sorted, 'weightKg'), waist: trendOf(sorted, 'waistCm') };
+}
+
+const WEIGH_IN_INTERVAL_DAYS = 7;
+
+export function weighInDue(body, today) {
+  const latest = [...body].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  if (!latest) return true;
+  return dayNumber(today) - dayNumber(parseISODate(latest.date)) >= WEIGH_IN_INTERVAL_DAYS;
+}
+
 // Skipped sessions (illness, travel) are left out rather than counted as missed.
 export function adherence(logs, dueKeys) {
   const skipped = dueKeys.filter((key) => logs[key]?.skipped).length;

@@ -7,6 +7,10 @@ import {
 import { withSettings, withoutLogs, validateState } from '../store.js';
 import { mondayOf, parseISODate, toISODate } from '../schedule.js';
 import { exportBackup, markBackedUp } from '../backup.js';
+import {
+  stravaAvailable, loadStrava, startStravaConnect, disconnectStrava,
+} from '../strava.js';
+import { EXERCISES } from '../exercises.js';
 import { esc, formatLongDate } from '../ui.js';
 
 const GUIDE = [
@@ -48,6 +52,52 @@ function layoutForm({ layout, clubRuns }) {
 function pacesList(fiveK) {
   return Object.keys(ZONE_OFFSETS).map((zone) => `
     <li><span>${esc(ZONE_LABELS[zone])}</span><strong>${esc(describeZone(zone, fiveK))}</strong></li>`).join('');
+}
+
+function stravaCard() {
+  if (!stravaAvailable()) return '';
+  const { refreshToken, name, lastSync, pending } = loadStrava();
+  if (!refreshToken) {
+    return `
+      <section class="card">
+        <h2 class="section-title">Strava</h2>
+        <p class="muted small">Connect Strava and your Garmin runs (synced to Strava) are logged automatically: matched to that day's session, or saved as extra runs.</p>
+        <p class="actions">
+          <button type="button" class="btn primary" data-action="strava-connect">Connect Strava</button>
+          ${pending ? '<button type="button" class="btn" data-action="strava-finish">Finish connecting</button>' : ''}
+        </p>
+      </section>`;
+  }
+  const synced = lastSync
+    ? `Last synced ${new Date(lastSync).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.`
+    : 'Not synced yet.';
+  return `
+    <section class="card">
+      <h2 class="section-title">Strava</h2>
+      <p class="muted small">Connected${name ? ` as ${esc(name)}` : ''}. ${esc(synced)} New runs sync when you open the app.</p>
+      <p class="actions">
+        <button type="button" class="btn" data-action="strava-sync">Sync now</button>
+        <button type="button" class="btn danger" data-action="strava-disconnect">Disconnect</button>
+      </p>
+    </section>`;
+}
+
+function swapsCard(swaps = {}) {
+  const entries = Object.entries(swaps);
+  if (!entries.length) return '';
+  const rows = entries.map(([slot, swapTo]) => `
+    <li class="plan-row">
+      <span class="plan-main">
+        <span class="plan-title">${esc(EXERCISES[swapTo].name)}</span>
+        <span class="plan-sub">instead of ${esc(EXERCISES[slot].name)}</span>
+      </span>
+      <button type="button" class="btn small-btn" data-unswap="${slot}">Undo</button>
+    </li>`).join('');
+  return `
+    <section class="card">
+      <h2 class="section-title">Exercise swaps</h2>
+      <ol class="plan-list">${rows}</ol>
+    </section>`;
 }
 
 function shortcutCard() {
@@ -98,6 +148,10 @@ export function renderSettings({ state }) {
         <label class="btn file-btn"><input type="file" class="sr-only" accept="application/json,.json" data-action="import">Import backup</label>
       </p>
     </section>
+
+    ${stravaCard()}
+
+    ${swapsCard(state.settings.swaps)}
 
     ${shortcutCard()}
 
@@ -169,6 +223,24 @@ export function bindSettings(root, ctx) {
     } catch (error) {
       ctx.toast(error instanceof SyntaxError ? 'That file is not a valid backup.' : error.message);
     }
+  });
+
+  root.querySelector('[data-action="strava-connect"]')?.addEventListener('click', () => startStravaConnect());
+  root.querySelector('[data-action="strava-finish"]')?.addEventListener('click', () => ctx.finishStrava());
+  root.querySelector('[data-action="strava-sync"]')?.addEventListener('click', () => ctx.syncStrava());
+  root.querySelector('[data-action="strava-disconnect"]')?.addEventListener('click', () => {
+    if (!window.confirm('Disconnect Strava? Runs already synced stay in your log.')) return;
+    disconnectStrava();
+    ctx.commit(ctx.state);
+    ctx.toast('Strava disconnected.');
+  });
+
+  root.addEventListener('click', (event) => {
+    const slot = event.target.closest('[data-unswap]')?.dataset.unswap;
+    if (!slot) return;
+    const swaps = Object.fromEntries(Object.entries(ctx.state.settings.swaps ?? {}).filter(([key]) => key !== slot));
+    ctx.commit(withSettings(ctx.state, { swaps }));
+    ctx.toast(`Back to ${EXERCISES[slot].name}.`);
   });
 
   root.querySelector('[data-action="reset"]').addEventListener('click', () => {

@@ -2,8 +2,38 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createState, withSettings, withLog, withoutLogs, validateState, validateExtra, withExtra, withoutExtra,
+  validateBodyEntry, withBodyEntry, withoutBodyEntry,
   createRepository, memoryStorage, STORAGE_KEY,
 } from '../js/store.js';
+
+test('body entries replace the same date and stay sorted', () => {
+  const base = createState({ startDate: '2026-10-12' });
+  const one = withBodyEntry(base, { date: '2026-10-19', weightKg: 78.4, waistCm: null });
+  const two = withBodyEntry(one, { date: '2026-10-12', weightKg: 79, waistCm: 90 });
+  const replaced = withBodyEntry(two, { date: '2026-10-19', weightKg: 78.1, waistCm: 89 });
+  assert.deepEqual(base.body, []);
+  assert.deepEqual(replaced.body.map((e) => [e.date, e.weightKg]), [['2026-10-12', 79], ['2026-10-19', 78.1]]);
+  assert.deepEqual(withoutBodyEntry(replaced, '2026-10-12').body.map((e) => e.date), ['2026-10-19']);
+});
+
+test('validateBodyEntry needs a date and a sensible weight or waist', () => {
+  assert.equal(validateBodyEntry({ date: '2026-10-19', weightKg: 78, waistCm: null }), null);
+  assert.equal(validateBodyEntry({ date: '2026-10-19', weightKg: null, waistCm: 88 }), null);
+  assert.match(validateBodyEntry({ date: '2026-10-19', weightKg: null, waistCm: null }), /weight or waist/i);
+  assert.match(validateBodyEntry({ date: '2026-10-19', weightKg: 900, waistCm: null }), /weight/i);
+  assert.match(validateBodyEntry({ date: 'soon', weightKg: 78, waistCm: null }), /date/i);
+});
+
+test('validateState checks swaps and body entries, and fills them in for older saves', () => {
+  const old = { version: 1, settings: { startDate: '2026-10-12', fiveK: '24:00' }, logs: {} };
+  const state = validateState(old);
+  assert.deepEqual(state.settings.swaps, {});
+  assert.deepEqual(state.body, []);
+  const good = createState({ startDate: '2026-10-12', swaps: { backSquat: 'gobletSquat' } });
+  assert.deepEqual(validateState(JSON.parse(JSON.stringify(good))).settings.swaps, { backSquat: 'gobletSquat' });
+  assert.throws(() => validateState({ ...good, settings: { ...good.settings, swaps: { backSquat: 'deadlift' } } }), /swap/i);
+  assert.throws(() => validateState({ ...good, body: [{ date: 'x', weightKg: 1 }] }), /body/i);
+});
 
 const extra = (patch = {}) => ({
   id: 'x1', date: '2026-10-14', type: 'run', distanceKm: 4.2, durationSec: 1500, avgHr: null, notes: '', ...patch,
