@@ -1,0 +1,8 @@
+# Unused early icon renders the sandbox couldn't delete; the live icons are *-v2.png and icon.svg.
+icons/apple-touch-icon.png
+icons/icon-192.png
+icons/icon-512.png
+icons/touch-icon.png
+icons/app-192.png
+icons/app-512.png
+.DS_Store

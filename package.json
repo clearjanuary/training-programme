@@ -1,0 +1,10 @@
+{
+  "name": "training-programme",
+  "private": true,
+  "type": "module",
+  "description": "12-week running + strength programme, as an installable iPhone web app.",
+  "scripts": {
+    "test": "node --test",
+    "coverage": "node --test --experimental-test-coverage"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Train · 12-week programme",
+  "short_name": "Train",
+  "description": "Running and strength programme for the garage gym",
+  "start_url": "./#/today",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4F2EE",
+  "theme_color": "#FF5A36",
+  "icons": [
+    { "src": "icons/app-192-v2.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/app-512-v2.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
