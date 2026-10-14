@@ -76,6 +76,8 @@ function render() {
   const routeCtx = Object.create(ctx, { params: { value: route.params } });
   lastRenderedDay = toISODate(new Date());
   keepScreenOn(route.name === 'session');
+  // The tabs can't go anywhere until a start date is chosen, so hide them on the welcome screen.
+  document.body.classList.toggle('onboarding', route.name === 'welcome');
   try {
     app.innerHTML = `<div class="view view-${route.name}">${view.render(routeCtx)}</div>`;
     view.bind?.(app.firstElementChild, routeCtx);
