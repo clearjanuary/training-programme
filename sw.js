@@ -1,7 +1,7 @@
 // Network-first service worker: always fresh when online, still works offline
 // (e.g. no signal in the garage) from the last cached copy.
 // Bump CACHE whenever SHELL changes so installed copies pick up the new list.
-const CACHE = 'train-v2';
+const CACHE = 'train-v3';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/ui.js', './js/timer.js', './js/stats.js', './js/programme.js',
@@ -9,7 +9,7 @@ const SHELL = [
   './js/backup.js', './js/wakelock.js',
   './js/views/today.js', './js/views/plan.js', './js/views/session.js', './js/views/gym.js',
   './js/views/run.js', './js/views/progress.js', './js/views/settings.js',
-  './js/views/welcome.js', './js/views/import-run.js',
+  './js/views/welcome.js', './js/views/import-run.js', './js/views/extra.js', './js/views/skip.js',
   './icons/icon.svg', './icons/touch-icon-v2.png', './icons/app-192-v2.png', './icons/app-512-v2.png',
 ];
 

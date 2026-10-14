@@ -1,9 +1,40 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createState, withSettings, withLog, withoutLogs, validateState,
+  createState, withSettings, withLog, withoutLogs, validateState, validateExtra, withExtra, withoutExtra,
   createRepository, memoryStorage, STORAGE_KEY,
 } from '../js/store.js';
+
+const extra = (patch = {}) => ({
+  id: 'x1', date: '2026-10-14', type: 'run', distanceKm: 4.2, durationSec: 1500, avgHr: null, notes: '', ...patch,
+});
+
+test('extras can be added and removed without touching the original', () => {
+  const original = createState({ startDate: '2026-10-12' });
+  const added = withExtra(original, extra());
+  assert.deepEqual(original.extras, []);
+  assert.equal(added.extras.length, 1);
+  assert.deepEqual(withoutExtra(added, 'x1').extras, []);
+  assert.deepEqual(withoutLogs(added).extras, []);
+});
+
+test('validateExtra accepts good entries and explains bad ones', () => {
+  assert.equal(validateExtra(extra()), null);
+  assert.equal(validateExtra(extra({ type: 'erg', distanceKm: null })), null);
+  assert.match(validateExtra(extra({ distanceKm: null })), /distance/i);
+  assert.match(validateExtra(extra({ type: 'yoga' })), /type/i);
+  assert.match(validateExtra(extra({ durationSec: 0 })), /time/i);
+  assert.match(validateExtra(extra({ date: '14/10' })), /date/i);
+  assert.match(validateExtra(extra({ avgHr: 400 })), /heart rate/i);
+});
+
+test('validateState keeps extras and fills them in for older saves', () => {
+  const state = withExtra(createState({ startDate: '2026-10-12' }), extra());
+  assert.deepEqual(validateState(JSON.parse(JSON.stringify(state))).extras, state.extras);
+  const old = { version: 1, settings: { startDate: '2026-10-12', fiveK: '24:00' }, logs: {} };
+  assert.deepEqual(validateState(old).extras, []);
+  assert.throws(() => validateState({ ...state, extras: [extra({ type: 'yoga' })] }), /extra activity/i);
+});
 import { DEFAULT_LAYOUT } from '../js/programme.js';
 
 const silent = { error: () => {} };

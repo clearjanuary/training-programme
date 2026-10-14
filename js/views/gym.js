@@ -7,6 +7,7 @@ import { withLog } from '../store.js';
 import { toISODate, parseISODate } from '../schedule.js';
 import { esc, sessionHeader, formatLongDate, CHECK_ICON } from '../ui.js';
 import { startRest } from '../timer.js';
+import { skipBanner, skipControl, clearSkip } from './skip.js';
 
 const UNIT_LABEL = Object.freeze({ reps: 'reps', s: 'sec', m: 'm' });
 const repsText = ([min, max]) => (min === max ? `${min}` : `${min}–${max}`);
@@ -98,6 +99,7 @@ export function renderGym(session, ctx) {
     : '';
   return `
     ${sessionHeader(session, state.settings.startDate)}
+    ${skipBanner(log)}
     <section class="card note">
       <h2 class="section-title">Warm-up · 8 min</h2>
       <p>${esc(session.warmUp)}</p>
@@ -106,7 +108,8 @@ export function renderGym(session, ctx) {
     <div class="finish">
       ${doneNote}
       <button type="button" class="btn primary block" data-action="finish">${log.done ? 'Save changes' : 'Finish session'}</button>
-    </div>`;
+    </div>
+    ${skipControl(log)}`;
 }
 
 function readNumber(input) {
@@ -166,7 +169,7 @@ export function bindGym(root, session, ctx) {
 
   function finish() {
     const log = currentLog();
-    save({ ...log, done: true, date: log.date ?? toISODate(new Date()) }, { render: false });
+    save({ ...clearSkip(log), done: true, date: log.date ?? toISODate(new Date()) }, { render: false });
     ctx.toast(`${session.title} saved. Good work.`);
     ctx.navigate('#/today');
   }

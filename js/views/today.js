@@ -1,6 +1,8 @@
 import { sessionOnDay, weekSessions, plannedKm, DAY_NAMES, PROGRAMME_WEEKS, EXERCISES } from '../programme.js';
 import { programmePosition, dateForSession, parseISODate } from '../schedule.js';
-import { actualKm, pendingSessions, backupDue } from '../stats.js';
+import {
+  actualKm, extraRunKm, pendingSessions, backupDue, weeklyVolume, volumeWarning,
+} from '../stats.js';
 import { exportBackup, markBackedUp, isIOSBrowserTab } from '../backup.js';
 import { parseDuration, describeZone } from '../paces.js';
 import { DEFAULT_SETTINGS } from '../store.js';
@@ -83,12 +85,25 @@ function weekStrip(week, state, today) {
     <section class="card">
       <h2 class="section-title">This week</h2>
       <ol class="week-strip">${days}</ol>
-      <p class="muted small">Running: ${esc(formatKm(actualKm(state.logs, week)))} of ${plannedKm(week, state.settings)} km planned</p>
+      <p class="muted small">Running: ${esc(formatKm(actualKm(state.logs, week) + extraRunKm(state.extras ?? [], startDate, week)))} of ${plannedKm(week, state.settings)} km planned</p>
+      <p class="actions"><a class="btn" href="#/extra">+ Extra activity</a></p>
     </section>`;
 }
 
-function notices(state, today) {
-  const cards = [];
+function loadNotice(state, week) {
+  const volume = weeklyVolume(state.logs, state.settings, state.extras ?? []);
+  const warning = volumeWarning(volume[week - 1], 'This week')
+    ?? (week > 1 ? volumeWarning(volume[week - 2], 'Last week') : null);
+  if (!warning) return '';
+  return `
+    <section class="card notice">
+      <h2 class="section-title">Running load check</h2>
+      <p class="muted small">${esc(warning)}</p>
+    </section>`;
+}
+
+function notices(state, today, week) {
+  const cards = [loadNotice(state, week)];
   if (isIOSBrowserTab()) {
     cards.push(`
       <section class="card notice">
@@ -150,5 +165,5 @@ export function renderToday({ state, today }) {
     ${todayCard(session, state, today)}
     ${catchUpCard(pending)}
     ${weekStrip(position.week, state, today)}
-    ${notices(state, today)}`;
+    ${notices(state, today, position.week)}`;
 }

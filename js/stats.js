@@ -2,7 +2,7 @@ import {
   PROGRAMME_WEEKS, DAY_ORDER, weekSessions, plannedKm, sessionKey,
 } from './programme.js';
 import { estimateOneRepMax, completedSets } from './progression.js';
-import { dateForSession, dayNumber, parseISODate } from './schedule.js';
+import { dateForSession, dayNumber, parseISODate, programmePosition } from './schedule.js';
 
 const WEEKS = Array.from({ length: PROGRAMME_WEEKS }, (_, i) => i + 1);
 const RUN_KINDS = Object.freeze(['runEasy', 'runQuality', 'runLong']);
@@ -13,8 +13,41 @@ const allSets = (logs, exerciseId) =>
 export const actualKm = (logs, week) =>
   RUN_KINDS.reduce((sum, kind) => sum + (Number(logs[sessionKey(week, kind)]?.run?.distanceKm) || 0), 0);
 
-export const weeklyVolume = (logs, settings) =>
-  WEEKS.map((week) => ({ week, planned: plannedKm(week, settings), actual: actualKm(logs, week) }));
+// Kilometres from extra (unplanned) runs dated within the given programme week.
+export function extraRunKm(extras, startDate, week) {
+  return extras
+    .filter((extra) => extra.type === 'run')
+    .filter((extra) => {
+      const date = parseISODate(extra.date);
+      const position = date && programmePosition(date, startDate);
+      return position?.status === 'active' && position.week === week;
+    })
+    .reduce((sum, extra) => sum + (Number(extra.distanceKm) || 0), 0);
+}
+
+export const weeklyVolume = (logs, settings, extras = []) =>
+  WEEKS.map((week) => ({
+    week,
+    planned: plannedKm(week, settings),
+    actual: actualKm(logs, week) + extraRunKm(extras, settings.startDate, week),
+  }));
+
+const WEEKLY_OVERSHOOT = 1.2;
+const RUN_OVERSHOOT_KM = 3;
+const RUN_OVERSHOOT_RATIO = 1.25;
+const oneDecimal = (km) => Math.round(km * 10) / 10;
+
+// A week more than 20% over plan is the classic set-up for a running niggle.
+export function volumeWarning({ planned, actual }, label) {
+  if (!(planned > 0) || actual <= planned * WEEKLY_OVERSHOOT) return null;
+  return `${label} you ran ${oneDecimal(actual)} km against ${planned} km planned. Keep the next few runs easy and pick the shorter club routes.`;
+}
+
+export function runOverage(distanceKm, plannedKm) {
+  const over = distanceKm - plannedKm;
+  if (over <= RUN_OVERSHOOT_KM || distanceKm <= plannedKm * RUN_OVERSHOOT_RATIO) return null;
+  return `That's ${oneDecimal(over)} km more than planned. Fine now and then; keep your next two runs easy.`;
+}
 
 export function liftBests(logs, exerciseId) {
   return allSets(logs, exerciseId).reduce((best, set) => {
@@ -47,7 +80,8 @@ export function pendingSessions(logs, settings, week, today) {
   const todayIndex = DAY_ORDER.indexOf(today.getDay());
   return weekSessions(week, settings).filter((session) => session.type !== 'rest'
     && DAY_ORDER.indexOf(session.weekday) < todayIndex
-    && !logs[session.key]?.done);
+    && !logs[session.key]?.done
+    && !logs[session.key]?.skipped);
 }
 
 const BACKUP_INTERVAL_DAYS = 14;
@@ -70,7 +104,12 @@ export function defaultRunSession(sessions, logs, today) {
   return earlier.at(-1) ?? open[0] ?? runs[0];
 }
 
-export const adherence = (logs, dueKeys) => ({
-  done: dueKeys.filter((key) => logs[key]?.done).length,
-  due: dueKeys.length,
-});
+// Skipped sessions (illness, travel) are left out rather than counted as missed.
+export function adherence(logs, dueKeys) {
+  const skipped = dueKeys.filter((key) => logs[key]?.skipped).length;
+  return {
+    done: dueKeys.filter((key) => logs[key]?.done).length,
+    due: dueKeys.length - skipped,
+    skipped,
+  };
+}

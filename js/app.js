@@ -10,10 +10,12 @@ import { renderProgress } from './views/progress.js';
 import { renderSettings, bindSettings } from './views/settings.js';
 import { renderWelcome, bindWelcome } from './views/welcome.js';
 import { renderImportRun, bindImportRun } from './views/import-run.js';
+import { renderExtra, bindExtra } from './views/extra.js';
 
 const ROUTES = Object.freeze({
   welcome: { tab: null, render: renderWelcome, bind: bindWelcome },
   'import-run': { tab: 'today', render: renderImportRun, bind: bindImportRun },
+  extra: { tab: 'today', render: renderExtra, bind: bindExtra },
   today: { tab: 'today', render: renderToday, bind: bindToday },
   plan: { tab: 'plan', render: renderPlan },
   session: { tab: 'today', render: renderSession, bind: bindSession },

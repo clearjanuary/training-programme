@@ -1,6 +1,6 @@
 import { parseDuration } from './paces.js';
 import {
-  DEFAULT_LAYOUT, DEFAULT_CLUB_RUNS, CLUB_KINDS, validateLayout, sessionKey, parseSessionKey,
+  DEFAULT_LAYOUT, DEFAULT_CLUB_RUNS, CLUB_KINDS, EXTRA_TYPES, validateLayout, sessionKey, parseSessionKey,
 } from './programme.js';
 
 // All data lives on the phone in localStorage. State is never mutated:
@@ -22,13 +22,55 @@ export const createState = (settings = {}) => ({
   version: 1,
   settings: { ...DEFAULT_SETTINGS, layout: [...DEFAULT_LAYOUT], clubRuns: [...DEFAULT_CLUB_RUNS], ...settings },
   logs: {},
+  extras: [],
 });
 
 export const withSettings = (state, patch) => ({ ...state, settings: { ...state.settings, ...patch } });
 export const withLog = (state, key, log) => ({ ...state, logs: { ...state.logs, [key]: log } });
-export const withoutLogs = (state) => ({ ...state, logs: {} });
+export const withoutLogs = (state) => ({ ...state, logs: {}, extras: [] });
+export const withExtra = (state, extra) => ({ ...state, extras: [...(state.extras ?? []), extra] });
+export const withoutExtra = (state, id) => ({ ...state, extras: (state.extras ?? []).filter((e) => e.id !== id) });
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+export const newExtraId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+const MAX_EXTRA_KM = 100;
+const MAX_EXTRA_SECONDS = 24 * 3600;
+const HR_RANGE = Object.freeze([30, 230]);
+const MAX_NOTES = 500;
+
+// Returns an error message, or null for a valid extra activity.
+export function validateExtra(extra) {
+  if (!isPlainObject(extra)) return 'Not an activity.';
+  if (typeof extra.id !== 'string' || !extra.id) return 'The activity is missing its id.';
+  if (!ISO_DATE.test(extra.date ?? '')) return 'Pick a valid date.';
+  if (!Object.hasOwn(EXTRA_TYPES, extra.type)) return 'Pick an activity type.';
+  if (!(Number.isInteger(extra.durationSec) && extra.durationSec > 0 && extra.durationSec <= MAX_EXTRA_SECONDS)) {
+    return 'Enter the time it took.';
+  }
+  const km = extra.distanceKm;
+  if (km === null || km === undefined) {
+    if (extra.type === 'run') return 'Enter the distance you ran.';
+  } else if (!(km > 0 && km <= MAX_EXTRA_KM)) {
+    return 'Enter a distance between 0 and 100 km.';
+  }
+  const hr = extra.avgHr;
+  if (hr !== null && hr !== undefined && !(hr >= HR_RANGE[0] && hr <= HR_RANGE[1])) {
+    return `Heart rate should be between ${HR_RANGE[0]} and ${HR_RANGE[1]}.`;
+  }
+  if (extra.notes !== undefined && (typeof extra.notes !== 'string' || extra.notes.length > MAX_NOTES)) {
+    return 'Notes are too long.';
+  }
+  return null;
+}
+
+function validateExtras(extras = []) {
+  if (!Array.isArray(extras)) throw new Error('The backup has unreadable extra activities.');
+  const bad = extras.map(validateExtra).find(Boolean);
+  if (bad) throw new Error(`The backup has an invalid extra activity: ${bad}`);
+  return extras.map((e) => ({ ...e }));
+}
 
 function migrateKey(key) {
   const match = LEGACY_KEY.exec(key);
@@ -67,7 +109,12 @@ export function validateState(raw) {
     .filter(([key]) => key !== null);
   const bad = entries.find(([key, log]) => !parseSessionKey(key) || !isPlainObject(log));
   if (bad) throw new Error(`The backup has an unreadable session: ${bad[2]}`);
-  return { version: 1, settings, logs: Object.fromEntries(entries.map(([key, log]) => [key, log])) };
+  return {
+    version: 1,
+    settings,
+    logs: Object.fromEntries(entries.map(([key, log]) => [key, log])),
+    extras: validateExtras(raw.extras),
+  };
 }
 
 export function memoryStorage() {

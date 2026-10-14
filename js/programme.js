@@ -13,6 +13,9 @@ export const KIND_LABELS = Object.freeze({
   runEasy: 'Easy run', runQuality: 'Quality run', runLong: 'Long run', rest: 'Rest',
 });
 
+// Unplanned activities that can be logged alongside the programme.
+export const EXTRA_TYPES = Object.freeze({ run: 'Run', erg: 'Erg', walk: 'Walk', other: 'Other' });
+
 // Which session sits on which day; index = Date#getDay() (0 = Sunday).
 // Default: strength Mon/Tue/Fri, solo intervals Wed, run club easy run Thu evening
 // and long run Sun morning.

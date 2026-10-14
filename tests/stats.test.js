@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   actualKm, weeklyVolume, liftBests, bestReps, dueSessionKeys, adherence, pendingSessions,
-  backupDue, defaultRunSession,
+  backupDue, defaultRunSession, volumeWarning, runOverage, extraRunKm,
 } from '../js/stats.js';
 import { parseISODate } from '../js/schedule.js';
 import { DEFAULT_LAYOUT, weekSessions } from '../js/programme.js';
@@ -78,7 +78,41 @@ test('defaultRunSession prefers today, then the latest unlogged earlier run', ()
   assert.equal(defaultRunSession(sessions, { 'w1-runEasy': { done: true } }, saturday).kind, 'runQuality');
 });
 
-test('adherence counts finished sessions among those due', () => {
-  const logs = { 'w1-gymA': { done: true }, 'w1-gymB': { done: false } };
-  assert.deepEqual(adherence(logs, ['w1-gymA', 'w1-gymB', 'w1-runEasy']), { done: 1, due: 3 });
+test('adherence counts finished sessions and leaves skipped ones out', () => {
+  const logs = { 'w1-gymA': { done: true }, 'w1-gymB': { done: false }, 'w1-runQuality': { skipped: true } };
+  assert.deepEqual(
+    adherence(logs, ['w1-gymA', 'w1-gymB', 'w1-runQuality', 'w1-runEasy']),
+    { done: 1, due: 3, skipped: 1 },
+  );
+});
+
+test('pendingSessions leaves out skipped sessions', () => {
+  const logs = { 'w1-gymA': { done: true }, 'w1-gymB': { skipped: true, skipReason: 'ill' } };
+  const pending = pendingSessions(logs, settings, 1, parseISODate('2026-10-15')).map((s) => s.key);
+  assert.deepEqual(pending, ['w1-runQuality']);
+});
+
+test('extra runs count towards the week they fall in', () => {
+  const extras = [
+    { id: 'a', date: '2026-10-13', type: 'run', distanceKm: 4, durationSec: 1500 },
+    { id: 'b', date: '2026-10-14', type: 'erg', distanceKm: 5, durationSec: 1200 },
+    { id: 'c', date: '2026-10-20', type: 'run', distanceKm: 6, durationSec: 2000 },
+  ];
+  assert.equal(extraRunKm(extras, settings.startDate, 1), 4);
+  assert.equal(extraRunKm(extras, settings.startDate, 2), 6);
+  const volume = weeklyVolume({ 'w1-runEasy': { run: { distanceKm: 5 } } }, settings, extras);
+  assert.equal(volume[0].actual, 9);
+  assert.equal(volume[1].actual, 6);
+});
+
+test('volumeWarning flags a week more than 20% over plan', () => {
+  assert.equal(volumeWarning({ planned: 20, actual: 23 }, 'This week'), null);
+  assert.match(volumeWarning({ planned: 20, actual: 26 }, 'Last week'), /^Last week you ran 26 km against 20 km/);
+  assert.equal(volumeWarning({ planned: 0, actual: 5 }, 'This week'), null);
+});
+
+test('runOverage flags a single run well past its plan', () => {
+  assert.equal(runOverage(10, 8), null);
+  assert.equal(runOverage(21, 20), null);
+  assert.match(runOverage(21, 10), /11 km more than planned/);
 });

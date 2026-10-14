@@ -5,6 +5,8 @@ import { parseActivity } from '../import.js';
 import { withLog, DEFAULT_SETTINGS } from '../store.js';
 import { toISODate } from '../schedule.js';
 import { esc, sessionHeader, formatKm } from '../ui.js';
+import { runOverage } from '../stats.js';
+import { skipBanner, skipControl, clearSkip } from './skip.js';
 
 const MAX_RUN_KM = 100;
 const HR_RANGE = Object.freeze([30, 230]);
@@ -45,6 +47,7 @@ export function renderRun(session, ctx) {
   const rpe = RPE_OPTIONS.map((n) => `<option value="${n}"${run.rpe === n ? ' selected' : ''}>${n}</option>`).join('');
   return `
     ${sessionHeader(session, state.settings.startDate)}
+    ${skipBanner(log)}
     <section class="card">
       <h2 class="section-title">Session · about ${session.plannedKm} km</h2>
       <ol class="steps">${session.steps.map((step) => stepItem(step, fiveK)).join('')}</ol>
@@ -80,7 +83,8 @@ export function renderRun(session, ctx) {
       <input type="hidden" name="source" value="${esc(run.source ?? 'Manual entry')}">
       <p class="form-error" role="alert" hidden></p>
       <button class="btn primary block" type="submit">Save run</button>
-    </form>`;
+    </form>
+    ${skipControl(log)}`;
 }
 
 function readRunForm(form) {
@@ -145,7 +149,7 @@ export function bindRun(root, session, ctx) {
       return;
     }
     const existing = ctx.state.logs[session.key] ?? {};
-    ctx.commit(withLog(ctx.state, session.key, { ...existing, done: true, date: existing.date ?? toISODate(new Date()), run }));
-    ctx.toast(`${session.title} saved.`);
+    ctx.commit(withLog(ctx.state, session.key, { ...clearSkip(existing), done: true, date: existing.date ?? toISODate(new Date()), run }));
+    ctx.toast(runOverage(run.distanceKm, session.plannedKm) ?? `${session.title} saved.`);
   });
 }

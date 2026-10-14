@@ -16,12 +16,13 @@ export const formatKm = (km) => `${Number(km).toFixed(Number.isInteger(km) ? 0 :
 export const phaseClass = (phase) => `phase-${phase.toLowerCase().replace(/\s+/g, '-')}`;
 
 export const STATUS_LABEL = Object.freeze({
-  done: 'Done', missed: 'Not logged', today: 'Today', upcoming: 'Upcoming', rest: 'Rest',
+  done: 'Done', skipped: 'Skipped', missed: 'Not logged', today: 'Today', upcoming: 'Upcoming', rest: 'Rest',
 });
 
 export function sessionStatus(session, log, startDate, today) {
   if (session.type === 'rest') return 'rest';
   if (log?.done) return 'done';
+  if (log?.skipped) return 'skipped';
   const diff = dayNumber(dateForSession(startDate, session.week, session.weekday)) - dayNumber(today);
   if (diff < 0) return 'missed';
   return diff === 0 ? 'today' : 'upcoming';

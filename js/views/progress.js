@@ -37,9 +37,10 @@ function liftRows(logs) {
 
 export function renderProgress({ state, today }) {
   const { logs, settings } = state;
-  const due = dueSessionKeys(settings, today);
-  const { done } = adherence(logs, due);
-  const volume = weeklyVolume(logs, settings);
+  const extras = state.extras ?? [];
+  const { done, due, skipped } = adherence(logs, dueSessionKeys(settings, today));
+  const volume = weeklyVolume(logs, settings, extras);
+  const extraMinutes = Math.round(extras.reduce((sum, e) => sum + e.durationSec, 0) / 60);
   const totalKm = volume.reduce((sum, v) => sum + v.actual, 0);
   const pullUps = bestReps(logs, 'pullUp');
   const dips = bestReps(logs, 'dip', { bodyweightOnly: true });
@@ -51,12 +52,13 @@ export function renderProgress({ state, today }) {
     </header>
     <section class="card">
       <div class="stats">
-        <div><span class="stat">${done}/${due.length}</span>sessions done</div>
+        <div><span class="stat">${done}/${due}</span>sessions done${skipped ? ` (${skipped} skipped)` : ''}</div>
         <div><span class="stat">${esc(formatKm(Math.round(totalKm * 10) / 10))}</span>run in total</div>
       </div>
     </section>
     <section class="card">
       <h2 class="section-title">Running volume</h2>
+      ${extras.length ? `<p class="muted small">Includes extra runs. ${extras.length} extra ${extras.length === 1 ? 'activity' : 'activities'} logged, ${extraMinutes} min in total.</p>` : ''}
       <p class="legend"><span class="key planned"></span>Planned <span class="key actual"></span>Logged</p>
       <ol class="bars">${volumeBars(volume)}</ol>
     </section>

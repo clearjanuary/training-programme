@@ -1,6 +1,7 @@
 import { sessionFromKey } from '../programme.js';
 import { renderGym, bindGym } from './gym.js';
 import { renderRun, bindRun } from './run.js';
+import { bindSkip } from './skip.js';
 
 const NOT_FOUND = `
   <section class="card">
@@ -23,4 +24,5 @@ export function bindSession(root, ctx) {
   const session = sessionFromKey(ctx.params.key, ctx.state.settings);
   if (session?.type === 'gym') bindGym(root, session, ctx);
   if (session?.type === 'run') bindRun(root, session, ctx);
+  if (session) bindSkip(root, session, ctx);
 }
