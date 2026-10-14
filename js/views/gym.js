@@ -8,6 +8,7 @@ import { toISODate, parseISODate } from '../schedule.js';
 import { esc, sessionHeader, formatLongDate, CHECK_ICON } from '../ui.js';
 import { startRest } from '../timer.js';
 import { skipBanner, skipControl, clearSkip } from './skip.js';
+import { LADDERS, ladderLevelUps } from '../ladders.js';
 
 const UNIT_LABEL = Object.freeze({ reps: 'reps', s: 'sec', m: 'm' });
 const repsText = ([min, max]) => (min === max ? `${min}` : `${min}–${max}`);
@@ -20,8 +21,24 @@ function targetText(item, exercise) {
   return `${item.sets} × ${repsText(item.reps)} ${unitOf(exercise)}${side}${reserve} · rest ${formatDuration(item.rest)}`;
 }
 
+function ladderHint(item, exercise) {
+  const position = `Level ${item.level + 1} of ${item.levelCount}.`;
+  if (!item.nextExercise) return `${position} Top level: keep adding reps or hold time.`;
+  return `${position} Hit ${item.reps[1]} ${unitOf(exercise)} on every set to move up to ${EXERCISES[item.nextExercise].name}.`;
+}
+
+function levelControl(item) {
+  const options = LADDERS[item.ladder].levels
+    .map((lvl, i) => `<option value="${i}"${i === item.level ? ' selected' : ''}>${i + 1}. ${esc(EXERCISES[lvl.exercise].name)}</option>`)
+    .join('');
+  return `
+    <label class="stack swap">Level
+      <select data-level="${item.ladder}">${options}</select>
+    </label>`;
+}
+
 function swapControl(item) {
-  const alternatives = EXERCISES[item.slot].alternatives ?? [];
+  const alternatives = EXERCISES[item.slot]?.alternatives ?? [];
   if (!alternatives.length) return '';
   const options = alternatives
     .map((id) => `<option value="${id}"${item.exercise === id ? ' selected' : ''}>${esc(EXERCISES[id].name)}</option>`)
@@ -96,11 +113,12 @@ function exerciseCard(item, index, session, state, log) {
       </div>
       ${hint}
       ${ladderNote ? `<p class="hint">${esc(ladderNote)}</p>` : ''}
+      ${target.ladder ? `<p class="hint">${esc(ladderHint(target, exercise))}</p>` : ''}
       ${target.note ? `<p class="hint">${esc(target.note)}</p>` : ''}
       ${warmUp ? `<p class="last">Warm-up sets: ${esc(warmUp)}</p>` : ''}
       ${last ? `<p class="last">${esc(lastTimeText(last))}</p>` : ''}
       <div class="sets">${rows}</div>
-      <details class="cue"><summary>How to do it</summary><p>${esc(exercise.cue)}</p>${swapControl(item)}</details>
+      <details class="cue"><summary>How to do it</summary><p>${esc(exercise.cue)}</p>${target.ladder ? levelControl(target) : swapControl(item)}</details>
     </section>`;
 }
 
@@ -184,10 +202,18 @@ export function bindGym(root, session, ctx) {
     startRest(Number(rest));
   }
 
+  // Finishing also moves any ladder whose every set hit the top of its range up a level
+  // (not in deload weeks, which are deliberately easier).
   function finish() {
     const log = currentLog();
-    save({ ...clearSkip(log), done: true, date: log.date ?? toISODate(new Date()) }, { render: false });
-    ctx.toast(`${session.title} saved. Good work.`);
+    const current = ctx.state.settings.levels ?? {};
+    const { levels, promoted } = isDeloadWeek(session.week)
+      ? { levels: current, promoted: [] }
+      : ladderLevelUps(session.items, log, current);
+    const finished = { ...clearSkip(log), done: true, date: log.date ?? toISODate(new Date()) };
+    ctx.commit(withLog(withSettings(ctx.state, { levels }), session.key, finished), { render: false });
+    const names = promoted.map((id) => EXERCISES[id].name);
+    ctx.toast(names.length ? `${session.title} saved. Level up: ${names.join(', ')}!` : `${session.title} saved. Good work.`);
     ctx.navigate('#/today');
   }
 
@@ -199,6 +225,13 @@ export function bindGym(root, session, ctx) {
 
   // Swaps stick for every future session until undone (here or in Settings).
   root.addEventListener('change', (event) => {
+    const ladderId = event.target.dataset.level;
+    if (ladderId) {
+      const index = Number(event.target.value);
+      ctx.commit(withSettings(ctx.state, { levels: { ...(ctx.state.settings.levels ?? {}), [ladderId]: index } }));
+      ctx.toast(`${LADDERS[ladderId].name}: level ${index + 1}.`);
+      return;
+    }
     const slot = event.target.dataset.swap;
     if (!slot) return;
     const current = ctx.state.settings.swaps ?? {};

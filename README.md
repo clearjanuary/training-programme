@@ -9,6 +9,20 @@ no accounts. Data stays on the phone (localStorage) with JSON backup/restore.
 Goals: lasting strength, more muscle and faster running, for an intermediate
 runner with a home rack, barbell, dumbbells, kettlebells and a pull-up bar.
 
+Strength sessions come in two styles (Settings → Strength style):
+
+- **Calisthenics** (default): bodyweight progressions on ladders defined in
+  [`js/ladders.js`](js/ladders.js), from easier to harder variations. Finish a
+  session with every set at the top of its range and that ladder moves up a level
+  (not in deload weeks). Skill ladders: planche, front lever, muscle-up, L-sit.
+  Strength ladders: push-ups, pike/handstand push-ups, rows, pistol squats, shrimp
+  squats, Nordic curls, hip thrusts, leg raises. Pull-ups and dips keep their
+  weekly ladders and become weighted later.
+  - A: broad jumps, planche, pull-ups, push-ups, pistol ladder, calf raises, L-sit
+  - B: pogo hops, front lever, muscle-up ladder, dips, pike push-ups, rows, leg raises
+  - C: squat jumps, shrimp squats, Nordics, hip thrusts, chin-ups, push-ups, dead hangs, side planks
+- **Barbell and dumbbells**: the original plan in the table below.
+
 Default week (change it in Settings → Weekly layout):
 
 | Day | Session | What |

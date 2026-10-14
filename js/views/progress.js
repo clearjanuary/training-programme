@@ -5,6 +5,28 @@ import {
 import { withBodyEntry, withoutBodyEntry, validateBodyEntry } from '../store.js';
 import { parseISODate, toISODate } from '../schedule.js';
 import { esc, formatKm, formatShortDate } from '../ui.js';
+import { LADDERS, levelIndex } from '../ladders.js';
+
+function ladderRows(levels, skill) {
+  return Object.entries(LADDERS)
+    .filter(([, ladder]) => Boolean(ladder.skill) === skill)
+    .map(([id, ladder]) => {
+      const index = levelIndex(id, levels);
+      const current = EXERCISES[ladder.levels[index].exercise].name;
+      return `<li><span>${esc(ladder.name)}</span><strong>${index + 1}/${ladder.levels.length} · ${esc(current)}</strong></li>`;
+    }).join('');
+}
+
+function skillsCard(levels = {}) {
+  return `
+    <section class="card">
+      <h2 class="section-title">Skills</h2>
+      <ul class="paces">${ladderRows(levels, true)}</ul>
+      <h3 class="sub-title">Strength progressions</h3>
+      <ul class="paces">${ladderRows(levels, false)}</ul>
+      <p class="muted small">Levels move up after a session where every set hits the top of its range.</p>
+    </section>`;
+}
 
 const MAIN_LIFTS = Object.freeze(['backSquat', 'benchPress', 'deadlift', 'overheadPress']);
 const STARTING_PULL_UPS = 5;
@@ -110,6 +132,7 @@ export function renderProgress({ state, today }) {
       <p class="legend"><span class="key planned"></span>Planned <span class="key actual"></span>Logged</p>
       <ol class="bars">${volumeBars(volume)}</ol>
     </section>
+    ${settings.style === 'barbell' ? `
     <section class="card">
       <h2 class="section-title">Strength</h2>
       <table class="lifts">
@@ -117,7 +140,7 @@ export function renderProgress({ state, today }) {
         <tbody>${liftRows(logs)}</tbody>
       </table>
       <p class="muted small">Estimated one-rep max from your best set. It's a trend to watch, not a number to test.</p>
-    </section>
+    </section>` : skillsCard(settings.levels)}
     <section class="card">
       <h2 class="section-title">Pull-ups and dips</h2>
       <div class="stats">

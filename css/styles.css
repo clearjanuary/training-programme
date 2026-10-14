@@ -269,6 +269,9 @@ p { margin: 0; }
 .sub-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 16px 0 4px; }
 .check { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: 15px; }
 .check input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.check.option { align-items: flex-start; padding: 6px 0; }
+.check.option input { margin-top: 2px; }
+.option-body { display: block; margin-top: 2px; }
 [data-form="layout"] .btn.block { margin-top: 12px; }
 [data-form="welcome"] .btn.block, [data-form="import-run"] .btn.block { margin-top: 16px; }
 .welcome-gap { margin-top: 16px; }
@@ -289,7 +292,9 @@ p { margin: 0; }
 }
 .code em { color: var(--accent); font-style: normal; font-weight: 600; }
 .paces { list-style: none; padding: 0; margin: 14px 0 0; }
-.paces li { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.paces li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.paces li span { white-space: nowrap; }
+.paces li strong { text-align: right; }
 .guide { border-top: 1px solid var(--line); }
 .guide:first-of-type { border-top: 0; }
 .guide summary { font-weight: 600; padding: 12px 0; cursor: pointer; min-height: 44px; }

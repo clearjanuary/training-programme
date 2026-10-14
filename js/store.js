@@ -1,7 +1,9 @@
 import { parseDuration } from './paces.js';
 import {
-  DEFAULT_LAYOUT, DEFAULT_CLUB_RUNS, CLUB_KINDS, EXTRA_TYPES, EXERCISES, validateLayout, sessionKey, parseSessionKey,
+  DEFAULT_LAYOUT, DEFAULT_CLUB_RUNS, CLUB_KINDS, EXTRA_TYPES, EXERCISES, STYLES, DEFAULT_STYLE,
+  validateLayout, sessionKey, parseSessionKey,
 } from './programme.js';
+import { LADDERS } from './ladders.js';
 
 // All data lives on the phone in localStorage. State is never mutated:
 // every helper returns a new object, and the repository persists it.
@@ -16,8 +18,21 @@ const LEGACY_LAYOUT = Object.freeze(['runLong', 'gymA', 'runEasy', 'gymB', 'runQ
 
 export const DEFAULT_SETTINGS = Object.freeze({
   startDate: null, fiveK: '24:00', layout: DEFAULT_LAYOUT, clubRuns: DEFAULT_CLUB_RUNS, lastBackup: null,
-  maxHr: null, restingHr: null, hrMethod: 'max',
+  maxHr: null, restingHr: null, hrMethod: 'max', style: DEFAULT_STYLE,
 });
+
+function validateStyle(style) {
+  if (!STYLES.includes(style)) throw new Error('The backup has an unknown strength style.');
+  return style;
+}
+
+function validateLevels(levels = {}) {
+  if (!levels || typeof levels !== 'object' || Array.isArray(levels)) throw new Error('The backup has unreadable progression levels.');
+  const bad = Object.entries(levels)
+    .find(([id, index]) => !LADDERS[id] || !Number.isInteger(index) || index < 0 || index >= LADDERS[id].levels.length);
+  if (bad) throw new Error(`The backup has an invalid progression level: ${bad[0]}`);
+  return { ...levels };
+}
 
 const MAX_HR_RANGE = Object.freeze([120, 230]);
 const RESTING_HR_RANGE = Object.freeze([30, 110]);
@@ -37,7 +52,9 @@ export function validateHeartRate({ maxHr = null, restingHr = null, hrMethod = '
 
 export const createState = (settings = {}) => ({
   version: 1,
-  settings: { ...DEFAULT_SETTINGS, layout: [...DEFAULT_LAYOUT], clubRuns: [...DEFAULT_CLUB_RUNS], swaps: {}, ...settings },
+  settings: {
+    ...DEFAULT_SETTINGS, layout: [...DEFAULT_LAYOUT], clubRuns: [...DEFAULT_CLUB_RUNS], swaps: {}, levels: {}, ...settings,
+  },
   logs: {},
   extras: [],
   body: [],
@@ -161,6 +178,8 @@ function validateSettings(settings) {
     lastBackup,
     swaps: validateSwaps(settings.swaps),
     ...heartRate,
+    style: validateStyle(settings.style ?? DEFAULT_STYLE),
+    levels: validateLevels(settings.levels),
   };
 }
 

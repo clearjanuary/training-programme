@@ -24,6 +24,20 @@ test('validateBodyEntry needs a date and a sensible weight or waist', () => {
   assert.match(validateBodyEntry({ date: 'soon', weightKg: 78, waistCm: null }), /date/i);
 });
 
+test('strength style defaults to calisthenics, and style and levels are validated', () => {
+  const { settings } = createState();
+  assert.equal(settings.style, 'calisthenics');
+  assert.deepEqual(settings.levels, {});
+  const good = createState({ startDate: '2026-10-12', style: 'barbell', levels: { planche: 1 } });
+  const round = validateState(JSON.parse(JSON.stringify(good)));
+  assert.equal(round.settings.style, 'barbell');
+  assert.deepEqual(round.settings.levels, { planche: 1 });
+  const bad = (patch) => ({ ...good, settings: { ...good.settings, ...patch } });
+  assert.throws(() => validateState(bad({ style: 'crossfit' })), /style/i);
+  assert.throws(() => validateState(bad({ levels: { planche: 40 } })), /level/i);
+  assert.throws(() => validateState(bad({ levels: { juggling: 1 } })), /level/i);
+});
+
 test('heart rate settings default to empty and are validated', () => {
   const { settings } = createState();
   assert.equal(settings.maxHr, null);

@@ -1,3 +1,6 @@
+import { CALISTHENICS_EXERCISES } from './exercises-calisthenics.js';
+
+
 // Exercise library for a home rack: barbell and plates, dumbbells 2–25 kg,
 // kettlebells 2–16 kg, bench, bands, pull-up bar and dip station.
 //
@@ -9,7 +12,7 @@
 // 1 kg jumps on overhead press, 2 kg on bench, 2.5 kg on squat and deadlift.
 const DUMBBELL_MAX_KG = 25;
 
-export const EXERCISES = Object.freeze({
+const BASE_EXERCISES = Object.freeze({
   // Main lifts
   backSquat: { name: 'Back squat', load: 'weight', barbell: true, increment: 2.5, alternatives: ['frontSquat', 'gobletSquat'], cue: 'Brace hard, sit down between your hips, knees track over toes. Set the rack safeties just below your bottom position.' },
   benchPress: { name: 'Bench press', load: 'weight', barbell: true, increment: 2, alternatives: ['dbBenchPress', 'pushUp'], cue: 'Shoulder blades pinned, feet planted. Touch low chest, press up and slightly back. Use the safeties.' },
@@ -64,3 +67,5 @@ export const EXERCISES = Object.freeze({
   squatJump: { name: 'Squat jump', load: 'none', cue: 'Quarter squat, jump straight up as high as you can, land softly and reset between reps.' },
   hamstringWalkout: { name: 'Hamstring bridge walk-out', load: 'none', cue: 'From a glute bridge, walk the heels out in small steps keeping hips high, then walk back in.' },
 });
+
+export const EXERCISES = Object.freeze({ ...BASE_EXERCISES, ...CALISTHENICS_EXERCISES });

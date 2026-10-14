@@ -51,9 +51,36 @@ test('every gym item references a known exercise and has a valid target', () => 
   }
 });
 
+test('calisthenics is the default style and uses no barbell', () => {
+  for (const kind of ['gymA', 'gymB', 'gymC']) {
+    const session = sessionOnDay(1, { gymA: 1, gymB: 2, gymC: 5 }[kind]);
+    assert.ok(session.items.every((i) => !i.barbell), kind);
+  }
+  assert.ok(getSession(1, 'gymA').items.some((i) => i.ladder === 'planche'));
+  assert.ok(getSession(1, 'gymB').items.some((i) => i.ladder === 'frontLever'));
+  assert.ok(getSession(1, 'gymB').items.some((i) => i.ladder === 'muscleUp'));
+  assert.ok(getSession(1, 'gymA').items.some((i) => i.ladder === 'lSit'));
+});
+
+test('ladder items take the saved level, its target and its load style', () => {
+  const session = sessionOnDay(1, 1, { levels: { planche: 2, push: 4 } });
+  const planche = session.items.find((i) => i.ladder === 'planche');
+  assert.equal(planche.exercise, 'tuckPlanche');
+  assert.deepEqual(planche.reps, [5, 15]);
+  assert.equal(planche.level, 2);
+  assert.equal(planche.nextExercise, 'advTuckPlanche');
+  const push = session.items.find((i) => i.ladder === 'push');
+  assert.equal(push.nextExercise, null, 'top level has nothing next');
+});
+
+test('the barbell style is still available', () => {
+  assert.ok(getSession(1, 'gymA', { style: 'barbell' }).items.some((i) => i.exercise === 'backSquat'));
+  assert.ok(sessionOnDay(1, 1, { style: 'barbell' }).items.some((i) => i.exercise === 'backSquat'));
+});
+
 test('deload weeks cut barbell sets and raise reps in reserve', () => {
-  const normal = findItem(getSession(3, 'gymA'), 'backSquat');
-  const deload = findItem(getSession(4, 'gymA'), 'backSquat');
+  const normal = findItem(getSession(3, 'gymA', { style: 'barbell' }), 'backSquat');
+  const deload = findItem(getSession(4, 'gymA', { style: 'barbell' }), 'backSquat');
   assert.equal(normal.sets, 3);
   assert.equal(deload.sets, 2);
   assert.equal(deload.rir, 4);
@@ -160,7 +187,8 @@ test('getSession rejects weeks and sessions outside the programme', () => {
 test('sessions open with power work, include Nordics, and end with mobility', () => {
   assert.equal(getSession(1, 'gymA').items[0].exercise, 'broadJump');
   assert.equal(getSession(1, 'gymB').items[0].exercise, 'pogoHops');
-  assert.ok(getSession(1, 'gymC').items.some((i) => i.exercise === 'nordicCurl'));
+  assert.ok(getSession(1, 'gymC', { style: 'barbell' }).items.some((i) => i.exercise === 'nordicCurl'));
+  assert.ok(getSession(1, 'gymC').items.some((i) => i.ladder === 'nordic'));
   assert.match(getSession(1, 'gymA').coolDown, /couch stretch/i);
 });
 
@@ -174,7 +202,7 @@ test('weight steps match the garage: 2.5 kg dumbbells up to 25 kg, small barbell
   assert.equal(EXERCISES.overheadPress.increment, 1);
   assert.equal(EXERCISES.benchPress.increment, 2);
   assert.equal(EXERCISES.backSquat.increment, 2.5);
-  assert.equal(getSession(1, 'gymA').items.find((i) => i.exercise === 'inclineDbPress').maxLoad, 25);
+  assert.equal(getSession(1, 'gymA', { style: 'barbell' }).items.find((i) => i.exercise === 'inclineDbPress').maxLoad, 25);
 });
 
 test('every alternative is a known exercise', () => {
@@ -184,7 +212,7 @@ test('every alternative is a known exercise', () => {
 });
 
 test('swaps replace an exercise but keep its slot and targets', () => {
-  const settings = { swaps: { backSquat: 'gobletSquat', pullUp: 'chinUp' } };
+  const settings = { style: 'barbell', swaps: { backSquat: 'gobletSquat', pullUp: 'chinUp' } };
   const session = sessionOnDay(1, 1, settings);
   const squat = session.items.find((i) => i.slot === 'backSquat');
   assert.equal(squat.exercise, 'gobletSquat');
@@ -198,7 +226,7 @@ test('swaps replace an exercise but keep its slot and targets', () => {
 });
 
 test('swaps to an exercise that is not an alternative are ignored', () => {
-  const squat = sessionOnDay(1, 1, { swaps: { backSquat: 'deadlift' } }).items.find((i) => i.slot === 'backSquat');
+  const squat = sessionOnDay(1, 1, { style: 'barbell', swaps: { backSquat: 'deadlift' } }).items.find((i) => i.slot === 'backSquat');
   assert.equal(squat.exercise, 'backSquat');
 });
 

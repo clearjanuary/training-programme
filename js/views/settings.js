@@ -51,6 +51,20 @@ function pacesList(fiveK) {
     <li><span>${esc(ZONE_LABELS[zone])}</span><strong>${esc(describeZone(zone, fiveK))}</strong></li>`).join('');
 }
 
+function styleCard(style) {
+  const option = (value, title, body) => `
+    <label class="check option"><input type="radio" name="style" value="${value}"${style === value ? ' checked' : ''}>
+      <span><strong>${title}</strong><span class="muted small option-body">${body}</span></span>
+    </label>`;
+  return `
+    <form class="card" data-form="style">
+      <h2 class="section-title">Strength style</h2>
+      ${option('calisthenics', 'Calisthenics', 'Bodyweight progressions towards the planche, front lever, muscle-up and L-sit, with pistol and shrimp squats for legs.')}
+      ${option('barbell', 'Barbell and dumbbells', 'Squat, bench, deadlift and overhead press with weights. The easiest way to measure leg strength.')}
+      <p class="muted small">Switching keeps your log and your progression levels.</p>
+    </form>`;
+}
+
 function heartRateCard({ maxHr, restingHr, hrMethod }) {
   const zones = maxHr
     ? hrZones({ maxHr, restingHr, method: hrMethod })
@@ -118,6 +132,8 @@ export function renderSettings({ state }) {
       </label>
       <p class="muted small">Snaps to the Monday of the week you pick. Currently ${esc(formatLongDate(parseISODate(startDate)))}.</p>
     </section>
+
+    ${styleCard(state.settings.style)}
 
     ${layoutForm(state.settings)}
 
@@ -214,6 +230,12 @@ export function bindSettings(root, ctx) {
     } catch (error) {
       ctx.toast(error instanceof SyntaxError ? 'That file is not a valid backup.' : error.message);
     }
+  });
+
+  root.querySelector('[data-form="style"]').addEventListener('change', (event) => {
+    if (event.target.name !== 'style') return;
+    ctx.commit(withSettings(ctx.state, { style: event.target.value }));
+    ctx.toast(event.target.value === 'calisthenics' ? 'Switched to calisthenics.' : 'Switched to barbell and dumbbells.');
   });
 
   root.querySelector('[data-form="heart-rate"]').addEventListener('submit', (event) => {

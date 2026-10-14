@@ -2,6 +2,7 @@
 // Weeks 4 and 8 are deloads; week 12 retests 5 km, pull-ups and dips.
 
 import { EXERCISES } from './exercises.js';
+import { LADDERS, levelIndex } from './ladders.js';
 
 export { EXERCISES };
 
@@ -58,7 +59,13 @@ export function layoutWarnings(layout) {
   });
 }
 
-const planOf = ({ layout = DEFAULT_LAYOUT, clubRuns = DEFAULT_CLUB_RUNS, swaps = {} } = {}) => ({ layout, clubRuns, swaps });
+// Strength sessions come in two styles: bodyweight progressions or barbell-led.
+export const STYLES = Object.freeze(['calisthenics', 'barbell']);
+export const DEFAULT_STYLE = 'calisthenics';
+
+const planOf = ({
+  layout = DEFAULT_LAYOUT, clubRuns = DEFAULT_CLUB_RUNS, swaps = {}, style = DEFAULT_STYLE, levels = {},
+} = {}) => ({ layout, clubRuns, swaps, style, levels });
 
 export const isDeloadWeek = (week) => DELOAD_WEEKS.includes(week);
 
@@ -117,6 +124,59 @@ const GYM_SESSIONS = Object.freeze({
   },
 });
 
+// A ladder item starts at its ladder's starting level; applyLevels swaps in the saved level.
+const ladder = (id, sets, extra = {}) => {
+  const start = LADDERS[id].levels[LADDERS[id].start];
+  return { exercise: start.exercise, ladder: id, sets, reps: start.reps, rir: 2, rest: 90, ...extra };
+};
+
+// Skills first while fresh, then strength, then legs and core. Pull-ups and dips keep
+// their weekly ladders (PLANS) and become weighted later in the block.
+const CALISTHENICS_SESSIONS = Object.freeze({
+  gymA: {
+    title: 'Strength A',
+    subtitle: 'Planche, pull-ups, push-ups, pistols',
+    items: [
+      item('broadJump', 3, [5, 5], { rest: 60, rir: null }),
+      ladder('planche', 4, { rest: 90, rir: null }),
+      item('pullUp', null, null, { rest: 120, plan: 'pullUp' }),
+      ladder('push', 3),
+      ladder('singleLegSquat', 3),
+      item('calfRaise', 3, [10, 15], { rest: 60 }),
+      ladder('lSit', 3, { rest: 60, rir: null }),
+    ],
+  },
+  gymB: {
+    title: 'Strength B',
+    subtitle: 'Front lever, muscle-ups, dips, handstand push',
+    items: [
+      item('pogoHops', 3, [20, 20], { rest: 45, rir: null }),
+      ladder('frontLever', 4, { rest: 90, rir: null }),
+      ladder('muscleUp', 3, { rest: 120 }),
+      item('dip', null, null, { rest: 120, plan: 'dip', startWeight: 5 }),
+      ladder('pike', 3),
+      ladder('row', 3),
+      ladder('legRaise', 3, { rest: 60 }),
+    ],
+  },
+  gymC: {
+    title: 'Strength C',
+    subtitle: 'Shrimp squats, Nordics, chin-ups, grip',
+    items: [
+      item('squatJump', 3, [5, 5], { rest: 60, rir: null }),
+      ladder('shrimp', 3),
+      ladder('nordic', 3, { rir: null }),
+      ladder('hipThrust', 3, { rest: 60 }),
+      item('chinUp', 3, [4, 8], { rest: 120 }),
+      ladder('push', 3),
+      item('deadHang', 3, [30, 60], { rest: 60, rir: null }),
+      item('sidePlank', 2, [30, 45], { rest: 45 }),
+    ],
+  },
+});
+
+const SESSIONS_BY_STYLE = Object.freeze({ calisthenics: CALISTHENICS_SESSIONS, barbell: GYM_SESSIONS });
+
 // Weekly bodyweight progressions; index = week number, 'test' = one all-out set.
 const PLANS = Object.freeze({
   pullUp: [null, [5, 3], [6, 3], [5, 4], [3, 3], [6, 4], [5, 5], [6, 5], [3, 4], [6, 5], [5, 6], [6, 6], 'test'],
@@ -139,7 +199,7 @@ const loadFlags = (exerciseId) => {
 
 // `slot` is the planned exercise; it stays the same when an alternative is swapped in.
 function resolveItem(gymItem, week) {
-  const base = { ...gymItem, slot: gymItem.exercise, ...loadFlags(gymItem.exercise) };
+  const base = { ...gymItem, slot: gymItem.ladder ?? gymItem.exercise, ...loadFlags(gymItem.exercise) };
   if (gymItem.plan) {
     const step = PLANS[gymItem.plan][week];
     if (step === 'test') {
@@ -165,9 +225,30 @@ export function applySwaps(session, swaps = {}) {
   if (session.type !== 'gym') return session;
   const items = session.items.map((gymItem) => {
     const swapTo = swaps[gymItem.slot];
-    const allowed = EXERCISES[gymItem.slot].alternatives ?? [];
+    const allowed = EXERCISES[gymItem.slot]?.alternatives ?? [];
     return swapTo && allowed.includes(swapTo) ? swapItem(gymItem, swapTo) : gymItem;
   });
+  return { ...session, items };
+}
+
+function withLevel(gymItem, index) {
+  const { levels } = LADDERS[gymItem.ladder];
+  const current = levels[index];
+  return {
+    ...gymItem,
+    ...loadFlags(current.exercise),
+    exercise: current.exercise,
+    reps: current.reps,
+    level: index,
+    levelCount: levels.length,
+    nextExercise: levels[index + 1]?.exercise ?? null,
+  };
+}
+
+// Puts each ladder item on its saved level (or the ladder's starting level).
+export function applyLevels(session, levels = {}) {
+  if (session.type !== 'gym') return session;
+  const items = session.items.map((gymItem) => (gymItem.ladder ? withLevel(gymItem, levelIndex(gymItem.ladder, levels)) : gymItem));
   return { ...session, items };
 }
 
@@ -287,12 +368,12 @@ function assertWeek(week) {
   }
 }
 
-export function getSession(week, kind, { club = false } = {}) {
+export function getSession(week, kind, { club = false, style = DEFAULT_STYLE } = {}) {
   assertWeek(week);
   if (!SESSION_KINDS.includes(kind)) throw new RangeError(`Unknown session: ${kind}`);
   const base = { key: sessionKey(week, kind), week, kind, phase: weekPhase(week) };
   if (kind.startsWith('gym')) {
-    const gym = GYM_SESSIONS[kind];
+    const gym = (SESSIONS_BY_STYLE[style] ?? SESSIONS_BY_STYLE[DEFAULT_STYLE])[kind];
     return {
       ...base, type: 'gym', title: gym.title, subtitle: gym.subtitle,
       warmUp: GYM_WARM_UP, coolDown: GYM_COOL_DOWN, items: gym.items.map((i) => resolveItem(i, week)),
@@ -303,21 +384,22 @@ export function getSession(week, kind, { club = false } = {}) {
 
 export function sessionOnDay(week, weekday, settings) {
   assertWeek(week);
-  const { layout, clubRuns, swaps } = planOf(settings);
+  const { layout, clubRuns, swaps, style, levels } = planOf(settings);
   const kind = layout[weekday];
   if (kind === undefined) throw new RangeError('Weekday must be between 0 and 6');
   if (kind === 'rest') {
     return { key: null, week, weekday, kind, type: 'rest', phase: weekPhase(week), title: 'Rest day', subtitle: 'Walk, stretch, sleep well' };
   }
-  return { ...applySwaps(getSession(week, kind, { club: clubRuns.includes(kind) }), swaps), weekday };
+  const session = getSession(week, kind, { club: clubRuns.includes(kind), style });
+  return { ...applyLevels(applySwaps(session, swaps), levels), weekday };
 }
 
 export function sessionFromKey(key, settings) {
   const parsed = parseSessionKey(key);
   if (!parsed || parsed.week < 1 || parsed.week > PROGRAMME_WEEKS) return null;
-  const { layout, clubRuns, swaps } = planOf(settings);
-  const session = getSession(parsed.week, parsed.kind, { club: clubRuns.includes(parsed.kind) });
-  return { ...applySwaps(session, swaps), weekday: layout.indexOf(parsed.kind) };
+  const { layout, clubRuns, swaps, style, levels } = planOf(settings);
+  const session = getSession(parsed.week, parsed.kind, { club: clubRuns.includes(parsed.kind), style });
+  return { ...applyLevels(applySwaps(session, swaps), levels), weekday: layout.indexOf(parsed.kind) };
 }
 
 export const weekSessions = (week, settings) => DAY_ORDER.map((weekday) => sessionOnDay(week, weekday, settings));
