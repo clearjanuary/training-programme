@@ -3,7 +3,6 @@ import { programmePosition, dateForSession, parseISODate } from '../schedule.js'
 import {
   actualKm, extraRunKm, pendingSessions, backupDue, weeklyVolume, volumeWarning, weighInDue,
 } from '../stats.js';
-import { isStravaConnected } from '../strava.js';
 import { exportBackup, markBackedUp, isIOSBrowserTab } from '../backup.js';
 import { parseDuration, describeZone } from '../paces.js';
 import { DEFAULT_SETTINGS } from '../store.js';
@@ -37,20 +36,23 @@ function todayCard(session, state, today) {
   const summary = session.type === 'gym' ? exerciseNames(session) : runSummary(session, fiveK);
   const label = session.type === 'gym' ? 'Garage gym · about 60 min' : 'Run';
   return `
-    <a class="card hero type-${session.type}" href="#/session/${session.key}">
+    <section class="card hero type-${session.type}">
       <p class="eyebrow">Today · ${label}</p>
       <h2>${esc(session.title)}</h2>
       <p class="hero-sub">${esc(session.subtitle)}</p>
       <p class="summary">${esc(summary)}</p>
-      <span class="btn on-hero">${status === 'done' ? 'Done · view session' : 'Start session'}</span>
-    </a>`;
+      <p class="hero-actions">
+        <a class="btn on-hero" href="#/session/${session.key}">${status === 'done' ? 'Done · view session' : session.type === 'run' ? 'See session' : 'Start session'}</a>
+        ${session.type === 'run' && status !== 'done' ? `<a class="btn on-hero secondary" href="#/session/${session.key}?log">Log run</a>` : ''}
+      </p>
+    </section>`;
 }
 
 function catchUpCard(pending) {
   if (!pending.length) return '';
   const rows = pending.map((s) => `
     <li>
-      <a class="plan-row type-${s.type}" href="#/session/${s.key}">
+      <a class="plan-row type-${s.type}" href="#/session/${s.key}${s.type === 'run' ? '?log' : ''}">
         <span class="plan-date">Planned ${DAY_NAMES[s.weekday]}</span>
         <span class="plan-main">
           <span class="plan-title">${esc(s.title)}</span>
@@ -87,10 +89,7 @@ function weekStrip(week, state, today) {
       <h2 class="section-title">This week</h2>
       <ol class="week-strip">${days}</ol>
       <p class="muted small">Running: ${esc(formatKm(actualKm(state.logs, week) + extraRunKm(state.extras ?? [], startDate, week)))} of ${plannedKm(week, state.settings)} km planned</p>
-      <p class="actions">
-        <a class="btn" href="#/extra">+ Extra activity</a>
-        ${isStravaConnected() ? '<button type="button" class="btn" data-action="strava-sync">Sync Strava</button>' : ''}
-      </p>
+      <p class="actions"><a class="btn" href="#/extra">+ Extra activity</a></p>
     </section>`;
 }
 
@@ -136,7 +135,6 @@ function notices(state, today, week) {
 }
 
 export function bindToday(root, ctx) {
-  root.querySelector('[data-action="strava-sync"]')?.addEventListener('click', () => ctx.syncStrava());
   root.querySelector('[data-action="backup"]')?.addEventListener('click', async () => {
     if (!(await exportBackup(ctx.state))) return;
     ctx.commit(markBackedUp(ctx.state));

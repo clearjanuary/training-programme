@@ -40,7 +40,7 @@ export function renderExtra({ state, today }) {
         <label class="stack">Distance (km)
           <input name="distance" type="number" inputmode="decimal" step="0.01" min="0" placeholder="optional">
         </label>
-        <div class="stack">Time
+        <div class="stack span-2">Time
           <div class="time-inputs">
             <label><input name="minutes" type="number" inputmode="numeric" min="0" aria-label="Minutes"><span class="unit">min</span></label>
             <label><input name="seconds" type="number" inputmode="numeric" min="0" max="59" aria-label="Seconds"><span class="unit">sec</span></label>

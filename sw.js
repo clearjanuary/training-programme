@@ -1,12 +1,12 @@
 // Network-first service worker: always fresh when online, still works offline
 // (e.g. no signal in the garage) from the last cached copy.
 // Bump CACHE whenever SHELL changes so installed copies pick up the new list.
-const CACHE = 'train-v4';
+const CACHE = 'train-v5';
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/app.js', './js/ui.js', './js/timer.js', './js/stats.js', './js/programme.js',
   './js/paces.js', './js/schedule.js', './js/progression.js', './js/store.js', './js/import.js',
-  './js/backup.js', './js/wakelock.js', './js/exercises.js', './js/strava.js', './js/strava-sync.js',
+  './js/backup.js', './js/wakelock.js', './js/exercises.js',
   './js/views/today.js', './js/views/plan.js', './js/views/session.js', './js/views/gym.js',
   './js/views/run.js', './js/views/progress.js', './js/views/settings.js',
   './js/views/welcome.js', './js/views/import-run.js', './js/views/extra.js', './js/views/skip.js',

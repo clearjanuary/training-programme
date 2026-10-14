@@ -7,9 +7,6 @@ import {
 import { withSettings, withoutLogs, validateState, validateHeartRate } from '../store.js';
 import { mondayOf, parseISODate, toISODate } from '../schedule.js';
 import { exportBackup, markBackedUp } from '../backup.js';
-import {
-  stravaAvailable, loadStrava, startStravaConnect, disconnectStrava,
-} from '../strava.js';
 import { EXERCISES } from '../exercises.js';
 import { esc, formatLongDate } from '../ui.js';
 
@@ -74,34 +71,6 @@ function heartRateCard({ maxHr, restingHr, hrMethod }) {
       <button class="btn block" type="submit">Save heart rate</button>
       ${zones ? `<ul class="paces">${zones}</ul>` : ''}
     </form>`;
-}
-
-function stravaCard() {
-  if (!stravaAvailable()) return '';
-  const { refreshToken, name, lastSync, pending } = loadStrava();
-  if (!refreshToken) {
-    return `
-      <section class="card">
-        <h2 class="section-title">Strava</h2>
-        <p class="muted small">Connect Strava and your Garmin runs (synced to Strava) are logged automatically: matched to that day's session, or saved as extra runs.</p>
-        <p class="actions">
-          <button type="button" class="btn primary" data-action="strava-connect">Connect Strava</button>
-          ${pending ? '<button type="button" class="btn" data-action="strava-finish">Finish connecting</button>' : ''}
-        </p>
-      </section>`;
-  }
-  const synced = lastSync
-    ? `Last synced ${new Date(lastSync).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.`
-    : 'Not synced yet.';
-  return `
-    <section class="card">
-      <h2 class="section-title">Strava</h2>
-      <p class="muted small">Connected${name ? ` as ${esc(name)}` : ''}. ${esc(synced)} New runs sync when you open the app.</p>
-      <p class="actions">
-        <button type="button" class="btn" data-action="strava-sync">Sync now</button>
-        <button type="button" class="btn danger" data-action="strava-disconnect">Disconnect</button>
-      </p>
-    </section>`;
 }
 
 function swapsCard(swaps = {}) {
@@ -172,8 +141,6 @@ export function renderSettings({ state }) {
         <label class="btn file-btn"><input type="file" class="sr-only" accept="application/json,.json" data-action="import">Import backup</label>
       </p>
     </section>
-
-    ${stravaCard()}
 
     ${swapsCard(state.settings.swaps)}
 
@@ -261,16 +228,6 @@ export function bindSettings(root, ctx) {
     }
     ctx.commit(withSettings(ctx.state, heartRate));
     ctx.toast(heartRate.maxHr ? 'Heart rate zones saved.' : 'Heart rate zones cleared.');
-  });
-
-  root.querySelector('[data-action="strava-connect"]')?.addEventListener('click', () => startStravaConnect());
-  root.querySelector('[data-action="strava-finish"]')?.addEventListener('click', () => ctx.finishStrava());
-  root.querySelector('[data-action="strava-sync"]')?.addEventListener('click', () => ctx.syncStrava());
-  root.querySelector('[data-action="strava-disconnect"]')?.addEventListener('click', () => {
-    if (!window.confirm('Disconnect Strava? Runs already synced stay in your log.')) return;
-    disconnectStrava();
-    ctx.commit(ctx.state);
-    ctx.toast('Strava disconnected.');
   });
 
   root.addEventListener('click', (event) => {

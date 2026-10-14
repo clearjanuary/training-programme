@@ -48,41 +48,6 @@ Without paid Apple tools a web app can't read Apple Health, so runs are logged b
    and average heart rate are filled in.
 2. **Manual entry:** distance, time, heart rate and effort.
 
-## Strava sync (Garmin → Strava → Train)
-
-Garmin Connect uploads runs to Strava; Train pulls them in, matches each to the
-session planned that day (or the day before, if that session is still unlogged)
-and saves anything else as an extra run. It syncs whenever the app opens, plus a
-"Sync Strava" button on Today.
-
-A tiny Cloudflare Worker (`worker/strava-worker.js`) holds the Strava client
-secret so it never sits in the app. It stores nothing about your runs: only a
-sign-in token for up to 10 minutes while the app collects it.
-
-One-time setup (free):
-
-1. **Cloudflare:** create an account at dash.cloudflare.com, open
-   *Workers & Pages* and choose your `workers.dev` subdomain.
-2. **Deploy the Worker** from this folder:
-   ```bash
-   cd worker
-   npx wrangler login
-   npx wrangler kv namespace create STRAVA_PENDING   # put the id in wrangler.toml
-   npx wrangler deploy                               # note the URL it prints
-   ```
-3. **Strava:** at strava.com/settings/api create an app: name *Train*, category
-   *Training*, website = the app URL, **Authorization Callback Domain** = the
-   Worker's host (e.g. `train-strava.yourname.workers.dev`). Upload
-   `icons/app-512-v2.png` as the icon.
-4. Put the **Client ID** in `worker/wrangler.toml`, then set the secret (paste it
-   at the prompt; it's never written to a file):
-   ```bash
-   npx wrangler secret put STRAVA_CLIENT_SECRET
-   npx wrangler deploy
-   ```
-5. Set `STRAVA_WORKER_URL` in `js/strava.js` to the Worker URL and push. The
-   *Strava* card then appears in Settings → *Connect Strava*.
-
 ## Import runs with an Apple Shortcut
 
 Garmin Connect, Polar Flow and Whoop can all write workouts to Apple Health

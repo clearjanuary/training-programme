@@ -65,9 +65,9 @@ export function renderRun(session, ctx) {
       <p class="muted small">Export the activity from Garmin Connect, Polar Flow or Strava, save it to Files, then choose it here.</p>
       <div class="grid-2">
         <label class="stack">Distance (km)
-          <input name="distance" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(run.distanceKm ? Number(run.distanceKm.toFixed(2)) : '')}">
+          <input name="distance" type="number" inputmode="decimal" step="0.01" min="0" value="${esc(run.distanceKm ? Number(run.distanceKm.toFixed(2)) : session.plannedKm)}">
         </label>
-        <div class="stack">Time
+        <div class="stack span-2">Time
           <div class="time-inputs">
             <label><input name="minutes" type="number" inputmode="numeric" min="0" value="${esc(minutes)}" aria-label="Minutes"><span class="unit">min</span></label>
             <label><input name="seconds" type="number" inputmode="numeric" min="0" max="59" value="${esc(seconds)}" aria-label="Seconds"><span class="unit">sec</span></label>
@@ -84,6 +84,7 @@ export function renderRun(session, ctx) {
         <textarea name="notes" rows="2" placeholder="How did it feel?">${esc(run.notes ?? '')}</textarea>
       </label>
       <input type="hidden" name="source" value="${esc(run.source ?? 'Manual entry')}">
+      <p class="live-pace" aria-live="polite"></p>
       <p class="form-error" role="alert" hidden></p>
       <button class="btn primary block" type="submit">Save run</button>
     </form>
@@ -120,6 +121,23 @@ function readRunForm(form) {
 export function bindRun(root, session, ctx) {
   const form = root.querySelector('form.run-log');
   const errorEl = form.querySelector('.form-error');
+  const livePace = form.querySelector('.live-pace');
+
+  // Shows the pace as distance and time are typed in.
+  const updatePace = () => {
+    const km = Number(form.distance.value);
+    const seconds = (Number(form.minutes.value) || 0) * 60 + (Number(form.seconds.value) || 0);
+    const pace = km > 0 && seconds > 0 ? paceOf(km, seconds) : null;
+    livePace.textContent = pace ? `Pace ${formatPace(pace)} /km` : '';
+  };
+  form.addEventListener('input', updatePace);
+  updatePace();
+
+  // Arriving from "Log run" on Today: jump straight to the form.
+  if (ctx.params.query === 'log') {
+    form.scrollIntoView({ block: 'start' });
+    form.minutes.focus({ preventScroll: true });
+  }
   const showError = (message) => {
     errorEl.textContent = message;
     errorEl.hidden = !message;
@@ -136,6 +154,7 @@ export function bindRun(root, session, ctx) {
       form.hr.value = activity.avgHr ?? '';
       form.source.value = `${activity.source}: ${file.name}`;
       showError('');
+      updatePace();
       ctx.toast('Run imported. Check the numbers, then save.');
     } catch (error) {
       showError(error.message);

@@ -7,10 +7,6 @@ import { renderToday, bindToday } from './views/today.js';
 import { renderPlan } from './views/plan.js';
 import { renderSession, bindSession } from './views/session.js';
 import { renderProgress, bindProgress } from './views/progress.js';
-import {
-  stravaAvailable, stravaAutoSyncDue, fetchStravaActivities, finishStravaConnect,
-} from './strava.js';
-import { planStravaImports, applyStravaImports, summariseImports } from './strava-sync.js';
 import { renderSettings, bindSettings } from './views/settings.js';
 import { renderWelcome, bindWelcome } from './views/welcome.js';
 import { renderImportRun, bindImportRun } from './views/import-run.js';
@@ -72,52 +68,7 @@ const ctx = {
   },
   navigate(hash) { location.hash = hash; },
   toast,
-  syncStrava: () => runStravaSync(),
-  finishStrava: () => collectStravaConnection({ announceWaiting: true }),
 };
-
-// Pulls new Strava runs and logs them against the matching sessions (or as extras).
-// Planning happens after the fetch so it always uses the latest state.
-async function runStravaSync({ quiet = false } = {}) {
-  if (!stravaAvailable() || !state.settings.startDate) return;
-  try {
-    const activities = await fetchStravaActivities(state.settings.startDate);
-    if (!activities) return;
-    const plans = planStravaImports(activities, state);
-    if (plans.length) {
-      ctx.commit(applyStravaImports(state, plans));
-      toast(summariseImports(plans));
-    } else if (!quiet) {
-      render();
-      toast('No new runs on Strava.');
-    }
-  } catch (error) {
-    console.error('Strava sync failed', error);
-    if (error.status === 401) toast('Strava disconnected. Reconnect it in Settings.');
-    else if (!quiet) toast(`Strava sync failed: ${error.message}`);
-  }
-}
-
-async function collectStravaConnection({ announceWaiting = false } = {}) {
-  try {
-    const name = await finishStravaConnect();
-    if (!name) {
-      if (announceWaiting) toast('Not ready yet. Approve Train on the Strava page first.');
-      return;
-    }
-    toast(`Connected to Strava as ${name}.`);
-    render();
-    await runStravaSync({ quiet: true });
-  } catch (error) {
-    console.error('Could not finish connecting Strava', error);
-    toast('Could not finish connecting Strava. Try again from Settings.');
-  }
-}
-
-function onForeground() {
-  collectStravaConnection();
-  if (stravaAutoSyncDue()) runStravaSync({ quiet: true });
-}
 
 function render() {
   const route = parseRoute();
@@ -140,21 +91,19 @@ function render() {
   });
 }
 
+// Scroll first so a view can still jump somewhere itself (e.g. straight to a log form).
 window.addEventListener('hashchange', () => {
-  render();
   window.scrollTo(0, 0);
+  render();
 });
 
 // The app may stay open overnight on the home screen; refresh when the day changes.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) return;
-  if (toISODate(new Date()) !== lastRenderedDay) render();
-  onForeground();
+  if (!document.hidden && toISODate(new Date()) !== lastRenderedDay) render();
 });
 
 initRestTimer();
 render();
-onForeground();
 
 if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('./sw.js').catch((error) => console.error('Offline support unavailable', error));
