@@ -164,6 +164,19 @@ test('sessions open with power work, include Nordics, and end with mobility', ()
   assert.match(getSession(1, 'gymA').coolDown, /couch stretch/i);
 });
 
+test('weight steps match the garage: 2.5 kg dumbbells up to 25 kg, small barbell jumps for presses', () => {
+  for (const [id, exercise] of Object.entries(EXERCISES)) {
+    if (exercise.maxLoad) {
+      assert.equal(exercise.increment, 2.5, `${id} dumbbell step`);
+      assert.equal(exercise.maxLoad, 25, `${id} heaviest dumbbell`);
+    }
+  }
+  assert.equal(EXERCISES.overheadPress.increment, 1);
+  assert.equal(EXERCISES.benchPress.increment, 2);
+  assert.equal(EXERCISES.backSquat.increment, 2.5);
+  assert.equal(getSession(1, 'gymA').items.find((i) => i.exercise === 'inclineDbPress').maxLoad, 25);
+});
+
 test('every alternative is a known exercise', () => {
   for (const [id, exercise] of Object.entries(EXERCISES)) {
     for (const alt of exercise.alternatives ?? []) assert.ok(EXERCISES[alt], `${id} → ${alt}`);

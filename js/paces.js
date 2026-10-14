@@ -55,6 +55,28 @@ export function describeZone(zone, fiveKSeconds) {
   return `${formatPace(pace.fast)}–${formatPace(pace.slow)} /km`;
 }
 
+// Garmin's default heart rate zones 1–5, as fractions of max heart rate
+// (or of heart rate reserve, if the watch is set to that method).
+const HR_ZONE_BANDS = Object.freeze([[0.5, 0.6], [0.6, 0.7], [0.7, 0.8], [0.8, 0.9], [0.9, 1]]);
+
+export function hrZones({ maxHr, restingHr = null, method = 'max' }) {
+  const base = method === 'reserve' && restingHr ? restingHr : 0;
+  const span = maxHr - base;
+  return HR_ZONE_BANDS.map(([low, high], i) => ({
+    zone: i + 1, low: Math.round(base + span * low), high: Math.round(base + span * high),
+  }));
+}
+
+// Heart rate guide for each run intensity, in the same zones the watch shows.
+export function describeHr(intensity, { maxHr, restingHr, method } = {}) {
+  if (!maxHr) return null;
+  const zones = hrZones({ maxHr, restingHr, method });
+  if (intensity === 'easy') return `Zone 2 · under ${zones[1].high} bpm`;
+  if (intensity === 'threshold') return `Zone 4 · ${zones[3].low}–${zones[3].high} bpm`;
+  if (intensity === 'interval') return `Zone 5 · ${zones[4].low}+ bpm`;
+  return null;
+}
+
 const FIVE_K_MINUTES = Object.freeze([12, 60]);
 
 // Builds a "m:ss" 5 km time from form fields, or null if it's out of range.

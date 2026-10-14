@@ -101,6 +101,16 @@ test('two stalled sessions at the same weight drop the load by about 10%', () =>
   assert.match(result.reason, /drop/i);
 });
 
+test('dumbbell work stops at the heaviest pair and suggests other ways to progress', () => {
+  const dumbbells = { weighted: true, sets: 3, reps: [8, 12], maxLoad: 25 };
+  const last = { sets: sets([25, 12], [25, 12], [25, 12]) };
+  const result = suggestLoad({ item: dumbbells, increment: 2.5, last });
+  assert.equal(result.weight, 25);
+  assert.match(result.reason, /heaviest/i);
+  const below = { sets: sets([22.5, 12], [22.5, 12], [22.5, 12]) };
+  assert.equal(suggestLoad({ item: dumbbells, increment: 2.5, last: below }).weight, 25);
+});
+
 test('one bad session is not a stall', () => {
   const last = { sets: sets([60, 5], [60, 5], [60, 4]) };
   const previous = { sets: sets([57.5, 8], [57.5, 8], [57.5, 8]) };

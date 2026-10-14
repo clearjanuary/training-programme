@@ -24,6 +24,19 @@ test('validateBodyEntry needs a date and a sensible weight or waist', () => {
   assert.match(validateBodyEntry({ date: 'soon', weightKg: 78, waistCm: null }), /date/i);
 });
 
+test('heart rate settings default to empty and are validated', () => {
+  const { settings } = createState();
+  assert.equal(settings.maxHr, null);
+  assert.equal(settings.restingHr, null);
+  assert.equal(settings.hrMethod, 'max');
+  const good = createState({ startDate: '2026-10-12', maxHr: 174, restingHr: 51, hrMethod: 'reserve' });
+  assert.equal(validateState(JSON.parse(JSON.stringify(good))).settings.maxHr, 174);
+  const bad = (patch) => ({ ...good, settings: { ...good.settings, ...patch } });
+  assert.throws(() => validateState(bad({ maxHr: 400 })), /heart rate/i);
+  assert.throws(() => validateState(bad({ restingHr: 5 })), /heart rate/i);
+  assert.throws(() => validateState(bad({ hrMethod: 'vibes' })), /heart rate/i);
+});
+
 test('validateState checks swaps and body entries, and fills them in for older saves', () => {
   const old = { version: 1, settings: { startDate: '2026-10-12', fiveK: '24:00' }, logs: {} };
   const state = validateState(old);

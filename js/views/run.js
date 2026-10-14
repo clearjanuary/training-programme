@@ -1,6 +1,8 @@
 import {
-  parseDuration, formatDuration, formatPace, describeZone, paceOf, ZONE_LABELS,
+  parseDuration, formatDuration, formatPace, describeZone, describeHr, paceOf, ZONE_LABELS,
 } from '../paces.js';
+
+const heartRateOf = ({ maxHr, restingHr, hrMethod }) => ({ maxHr, restingHr, method: hrMethod });
 import { parseActivity } from '../import.js';
 import { withLog, DEFAULT_SETTINGS } from '../store.js';
 import { toISODate } from '../schedule.js';
@@ -12,9 +14,10 @@ const MAX_RUN_KM = 100;
 const HR_RANGE = Object.freeze([30, 230]);
 const RPE_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
-function stepItem(step, fiveK) {
+function stepItem(step, fiveK, heartRate) {
+  const hr = step.zone ? describeHr(step.zone, heartRate) : null;
   const pace = step.zone
-    ? `<span class="pace zone-${step.zone}"><span class="pace-label">${esc(ZONE_LABELS[step.zone])}</span>${esc(describeZone(step.zone, fiveK))}</span>`
+    ? `<span class="pace zone-${step.zone}"><span class="pace-label">${esc(ZONE_LABELS[step.zone])}</span>${esc(describeZone(step.zone, fiveK))}${hr ? `<span class="pace-hr">${esc(hr)}</span>` : ''}</span>`
     : '';
   return `
     <li class="step">
@@ -50,7 +53,7 @@ export function renderRun(session, ctx) {
     ${skipBanner(log)}
     <section class="card">
       <h2 class="section-title">Session · about ${session.plannedKm} km</h2>
-      <ol class="steps">${session.steps.map((step) => stepItem(step, fiveK)).join('')}</ol>
+      <ol class="steps">${session.steps.map((step) => stepItem(step, fiveK, heartRateOf(state.settings))).join('')}</ol>
     </section>
     ${log?.done && run.distanceKm ? loggedSummary(run) : ''}
     <form class="card run-log" novalidate>

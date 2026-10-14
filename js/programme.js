@@ -128,8 +128,13 @@ const PLANS = Object.freeze({
 });
 
 const loadFlags = (exerciseId) => {
-  const { load, barbell } = EXERCISES[exerciseId];
-  return { weighted: load === 'weight' || load === 'optional', optionalLoad: load === 'optional', barbell: Boolean(barbell) };
+  const { load, barbell, maxLoad } = EXERCISES[exerciseId];
+  return {
+    weighted: load === 'weight' || load === 'optional',
+    optionalLoad: load === 'optional',
+    barbell: Boolean(barbell),
+    maxLoad: maxLoad ?? null,
+  };
 };
 
 // `slot` is the planned exercise; it stays the same when an alternative is swapped in.

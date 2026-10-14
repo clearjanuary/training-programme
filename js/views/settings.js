@@ -1,10 +1,10 @@
 import {
-  parseDuration, describeZone, fiveKFromParts, ZONE_LABELS, ZONE_OFFSETS,
+  parseDuration, describeZone, fiveKFromParts, hrZones, ZONE_LABELS, ZONE_OFFSETS,
 } from '../paces.js';
 import {
   DAY_ORDER, DAY_NAMES_LONG, LAYOUT_OPTIONS, KIND_LABELS, CLUB_KINDS, validateLayout, layoutWarnings,
 } from '../programme.js';
-import { withSettings, withoutLogs, validateState } from '../store.js';
+import { withSettings, withoutLogs, validateState, validateHeartRate } from '../store.js';
 import { mondayOf, parseISODate, toISODate } from '../schedule.js';
 import { exportBackup, markBackedUp } from '../backup.js';
 import {
@@ -52,6 +52,28 @@ function layoutForm({ layout, clubRuns }) {
 function pacesList(fiveK) {
   return Object.keys(ZONE_OFFSETS).map((zone) => `
     <li><span>${esc(ZONE_LABELS[zone])}</span><strong>${esc(describeZone(zone, fiveK))}</strong></li>`).join('');
+}
+
+function heartRateCard({ maxHr, restingHr, hrMethod }) {
+  const zones = maxHr
+    ? hrZones({ maxHr, restingHr, method: hrMethod })
+      .map((z) => `<li><span>Zone ${z.zone}</span><strong>${z.low}–${z.high} bpm</strong></li>`).join('')
+    : '';
+  const method = (value, label) => `<option value="${value}"${hrMethod === value ? ' selected' : ''}>${label}</option>`;
+  return `
+    <form class="card" data-form="heart-rate" novalidate>
+      <h2 class="section-title">Heart rate zones</h2>
+      <p class="muted small">Use the numbers from Garmin Connect (Heart Rate Zones) so the app matches your watch. 220 minus age is only an estimate and often too low for regular runners; if easy runs keep landing in Zone 3, your real max is probably higher.</p>
+      <div class="grid-2">
+        <label class="stack">Max heart rate<input name="maxHr" type="number" inputmode="numeric" value="${maxHr ?? ''}" placeholder="e.g. 174"></label>
+        <label class="stack">Resting heart rate<input name="restingHr" type="number" inputmode="numeric" value="${restingHr ?? ''}" placeholder="optional"></label>
+      </div>
+      <label class="stack">Zone method (as set on your watch)
+        <select name="hrMethod">${method('max', '% of max heart rate (Garmin default)')}${method('reserve', '% of heart rate reserve')}</select>
+      </label>
+      <button class="btn block" type="submit">Save heart rate</button>
+      ${zones ? `<ul class="paces">${zones}</ul>` : ''}
+    </form>`;
 }
 
 function stravaCard() {
@@ -140,6 +162,8 @@ export function renderSettings({ state }) {
       <ul class="paces">${pacesList(fiveKSec)}</ul>
     </form>
 
+    ${heartRateCard(state.settings)}
+
     <section class="card">
       <h2 class="section-title">Backup</h2>
       <p class="muted small">Your training log lives only on this phone. Export saves a copy to Files or iCloud Drive. ${backedUp ? `Last backup: ${esc(formatLongDate(backedUp))}.` : 'Not backed up yet.'}</p>
@@ -223,6 +247,20 @@ export function bindSettings(root, ctx) {
     } catch (error) {
       ctx.toast(error instanceof SyntaxError ? 'That file is not a valid backup.' : error.message);
     }
+  });
+
+  root.querySelector('[data-form="heart-rate"]').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const whole = (name) => (form.elements[name].value.trim() === '' ? null : Number(form.elements[name].value));
+    const heartRate = { maxHr: whole('maxHr'), restingHr: whole('restingHr'), hrMethod: form.elements.hrMethod.value };
+    const error = validateHeartRate(heartRate);
+    if (error) {
+      ctx.toast(error);
+      return;
+    }
+    ctx.commit(withSettings(ctx.state, heartRate));
+    ctx.toast(heartRate.maxHr ? 'Heart rate zones saved.' : 'Heart rate zones cleared.');
   });
 
   root.querySelector('[data-action="strava-connect"]')?.addEventListener('click', () => startStravaConnect());

@@ -16,7 +16,24 @@ const LEGACY_LAYOUT = Object.freeze(['runLong', 'gymA', 'runEasy', 'gymB', 'runQ
 
 export const DEFAULT_SETTINGS = Object.freeze({
   startDate: null, fiveK: '24:00', layout: DEFAULT_LAYOUT, clubRuns: DEFAULT_CLUB_RUNS, lastBackup: null,
+  maxHr: null, restingHr: null, hrMethod: 'max',
 });
+
+const MAX_HR_RANGE = Object.freeze([120, 230]);
+const RESTING_HR_RANGE = Object.freeze([30, 110]);
+const HR_METHODS = Object.freeze(['max', 'reserve']);
+
+// Returns an error message, or null for valid heart rate settings.
+export function validateHeartRate({ maxHr = null, restingHr = null, hrMethod = 'max' }) {
+  if (maxHr !== null && !(Number.isInteger(maxHr) && maxHr >= MAX_HR_RANGE[0] && maxHr <= MAX_HR_RANGE[1])) {
+    return `Max heart rate should be a whole number between ${MAX_HR_RANGE[0]} and ${MAX_HR_RANGE[1]}.`;
+  }
+  if (restingHr !== null && !(Number.isInteger(restingHr) && restingHr >= RESTING_HR_RANGE[0] && restingHr <= RESTING_HR_RANGE[1])) {
+    return `Resting heart rate should be a whole number between ${RESTING_HR_RANGE[0]} and ${RESTING_HR_RANGE[1]}.`;
+  }
+  if (!HR_METHODS.includes(hrMethod)) return 'Pick a heart rate zone method.';
+  return null;
+}
 
 export const createState = (settings = {}) => ({
   version: 1,
@@ -129,6 +146,11 @@ function validateSettings(settings) {
   if (!Array.isArray(clubRuns) || clubRuns.some((kind) => !CLUB_KINDS.includes(kind))) {
     throw new Error('The backup has invalid run club settings.');
   }
+  const heartRate = {
+    maxHr: settings.maxHr ?? null, restingHr: settings.restingHr ?? null, hrMethod: settings.hrMethod ?? 'max',
+  };
+  const hrError = validateHeartRate(heartRate);
+  if (hrError) throw new Error(`The backup has invalid heart rate settings. ${hrError}`);
   const lastBackup = settings.lastBackup ?? null;
   if (lastBackup !== null && !ISO_DATE.test(lastBackup)) throw new Error('The backup has an invalid backup date.');
   return {
@@ -138,6 +160,7 @@ function validateSettings(settings) {
     clubRuns: [...clubRuns],
     lastBackup,
     swaps: validateSwaps(settings.swaps),
+    ...heartRate,
   };
 }
 

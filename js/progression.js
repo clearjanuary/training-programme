@@ -68,7 +68,14 @@ export function suggestLoad({ item, increment, last, previous = null, deload = f
 
   const reachedTop = last.sets.length >= item.sets && last.sets.every((set) => Number(set.reps) >= max);
   if (reachedTop && increment > 0) {
-    return { weight: roundToHalf(working + increment), reason: `Every set hit ${max} last time, so add ${increment} kg.` };
+    const next = roundToHalf(working + increment);
+    if (item.maxLoad && next > item.maxLoad) {
+      return {
+        weight: working,
+        reason: `You're on the heaviest dumbbells (${item.maxLoad} kg). Progress by adding a rep each set or taking 3 seconds on the way down, or swap to an alternative under "How to do it".`,
+      };
+    }
+    return { weight: next, reason: `Every set hit ${max} last time, so add ${increment} kg.` };
   }
   if (missedBottom(last, min)) {
     const stalled = previous && working > 0 && workingWeight(previous) === working && missedBottom(previous, min);

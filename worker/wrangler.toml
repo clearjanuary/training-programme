@@ -11,7 +11,7 @@ STRAVA_CLIENT_ID = ""
 # Created with: npx wrangler kv namespace create STRAVA_PENDING
 [[kv_namespaces]]
 binding = "STRAVA_PENDING"
-id = ""
+id = "9619649d93f74cdb89ae7f8b88551f4b"
 
 # The client secret is never stored here. Set it with:
 #   npx wrangler secret put STRAVA_CLIENT_SECRET
