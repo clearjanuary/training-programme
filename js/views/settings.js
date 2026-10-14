@@ -65,7 +65,7 @@ function heartRateCard({ maxHr, restingHr, hrMethod }) {
       <h2 class="section-title">Heart rate zones</h2>
       <p class="muted small">Use the numbers from Garmin Connect (Heart Rate Zones) so the app matches your watch. 220 minus age is only an estimate and often too low for regular runners; if easy runs keep landing in Zone 3, your real max is probably higher.</p>
       <div class="grid-2">
-        <label class="stack">Max heart rate<input name="maxHr" type="number" inputmode="numeric" value="${maxHr ?? ''}" placeholder="e.g. 174"></label>
+        <label class="stack">Max heart rate<input name="maxHr" type="number" inputmode="numeric" value="${maxHr ?? ''}" placeholder="from Garmin"></label>
         <label class="stack">Resting heart rate<input name="restingHr" type="number" inputmode="numeric" value="${restingHr ?? ''}" placeholder="optional"></label>
       </div>
       <label class="stack">Zone method (as set on your watch)
